@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Futuristic Orbital Synth: Ultimate Edition</title>
+    <!-- Ladataan asteikot globaaliin muuttujaan scalesList ennen moduulia -->
+    <script src="scaleList.js"></script>
     <style>
         :root {
             --bg-color: #050505;
@@ -78,6 +80,7 @@
 
         /* Inputs */
         input[type="number"] { text-align: center; }
+        input[type="text"] { text-align: center; }
         input[type="range"] {
             -webkit-appearance: none;
             width: 80px;
@@ -207,6 +210,9 @@
             <button id="arpBtn" title="Shortcut: R">ARP</button>
             <button id="holdBtn" title="Shortcut: H">HOLD</button>
         </div>
+        <!-- ARP PATTERN INPUT -->
+        <input type="text" id="arpPatternInput" value="1 2 3 4 5 6 7 8" style="width:80px; margin-top:2px;" title="Note Order (e.g. 1 3 2 4)">
+        
         <div style="display:flex; gap:2px; align-items:center; margin-top:2px;">
             <input type="number" id="tempoInput" value="120" style="width:40px;" title="BPM">
             <button id="tapBtn" style="font-size:0.6rem; padding:4px 6px;">TAP</button>
@@ -235,6 +241,19 @@
         </div>
     </div>
 
+    <!-- SCALE SETTINGS -->
+    <div class="control-group">
+        <label>Scale</label>
+        <div style="display:flex; gap:2px; flex-direction:row; align-items: center;">
+            <label style="font-size:0.5rem; margin-right:2px;">Root:</label>
+            <input type="number" id="scaleRootInput" value="0" style="width: 25px;" title="Root Note Index">
+        </div>
+        <input type="text" id="scaleSearchInput" placeholder="Haku..." style="width: 80px; margin-top:2px;" title="Filter Scales">
+        <select id="scaleSelect" style="width: 85px; margin-top:2px; font-size:0.6rem;">
+            <option value="">- Valitse -</option>
+        </select>
+    </div>
+
     <div class="separator"></div>
 
     <!-- GENERAL SETTINGS -->
@@ -251,12 +270,19 @@
 
     <!-- FILES & MIDI -->
     <div class="control-group">
-        <label>Source / MIDI</label>
-        <select id="midiSelect" style="width: 90px;"><option value="">- MIDI Off -</option></select>
-        <div style="display:flex; gap:2px;">
-            <input type="file" id="sampleInput" accept="audio/*" style="width: 85px; font-size:0.6rem;">
+        <label>MIDI I/O</label>
+        <div style="display:flex; flex-direction: column; gap:2px;">
+            <select id="midiInputSelect" style="width: 90px;"><option value="">- MIDI IN -</option></select>
+            <select id="midiOutputSelect" style="width: 90px;"><option value="">- MIDI OUT -</option></select>
         </div>
-         <input type="file" id="sf2Input" accept=".sf2" style="width: 85px; font-size:0.6rem;">
+    </div>
+
+    <div class="control-group">
+        <label>Files</label>
+        <div style="display:flex; flex-direction: column; gap:2px;">
+             <input type="file" id="sampleInput" accept="audio/*" style="width: 85px; font-size:0.6rem;" title="Load Sample">
+             <input type="file" id="sf2Input" accept=".sf2" style="width: 85px; font-size:0.6rem;" title="Load SF2">
+        </div>
     </div>
     
     <div class="status" id="statusText">Valmis</div>
@@ -279,6 +305,7 @@
     const BASE_OCTAVE_HIGH = 8; 
     const LOWEST_OCTAVE = -1;
     const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const NOTE_NAMES_31 = ["C", "^C", "C#", "^C#", "vD", "D", "^D", "D#", "Eb", "vE", "E", "^E", "vF", "F", "vF#", "F#", "^F#", "vG", "G", "^G", "G#", "^G#", "vA", "A", "^A", "A#", "Bb", "vB", "B", "B#", "Cb"];
     
     let state = {
         zoom: 1.0,
@@ -294,9 +321,15 @@
             ratios: [] // Filled dynamically
         },
 
+        // Scale
+        scaleRoot: 0,
+        selectedScale: null, // { name: "...", steps: [...] }
+        scaleFilter: "",
+
         // Play Modes
         hold: false,
         arp: false,
+        arpPattern: [0, 1, 2, 3, 4, 5, 6, 7], // Default linear pattern
         tempo: 120,
         
         // Wheels
@@ -318,6 +351,7 @@
     // MIDI
     let midiAccess = null;
     let midiOutput = null;
+    let midiInput = null;
     const midiChannels = new Array(16).fill(false);
 
     // Canvas
@@ -335,6 +369,59 @@
     let currentArpId = null; // Currently playing ARP note ID for visualization
 
     const statusText = document.getElementById('statusText');
+
+    // --- SCALE LIST HANDLING ---
+    const scaleSelect = document.getElementById('scaleSelect');
+    const scaleSearchInput = document.getElementById('scaleSearchInput');
+    const scaleRootInput = document.getElementById('scaleRootInput');
+
+    function populateScaleList() {
+        // Varmista että scaleList.js on ladattu
+        if (typeof window.scalesList === 'undefined') {
+            console.warn("scalesList ei ole ladattu.");
+            return;
+        }
+
+        // Tyhjennä valikko
+        scaleSelect.innerHTML = '<option value="">- Ei asteikkoa -</option>';
+
+        // Suodata ja lisää
+        const term = state.scaleFilter.toLowerCase();
+        
+        window.scalesList.forEach((scale, index) => {
+            // Suodata EDO:n mukaan
+            if (scale.edo !== state.edo) return;
+            
+            // Suodata nimen mukaan
+            if (term && !scale.name.toLowerCase().includes(term)) return;
+
+            const opt = document.createElement('option');
+            opt.value = index; // Käytetään indeksiä alkuperäisessä taulukossa
+            opt.text = scale.name;
+            scaleSelect.appendChild(opt);
+        });
+        
+        // Palauta valinta jos nykyinen valittu asteikko on edelleen validi
+        // Tässä yksinkertaistettu: nollataan jos vaihdetaan EDOa
+    }
+
+    scaleSearchInput.addEventListener('input', (e) => {
+        state.scaleFilter = e.target.value;
+        populateScaleList();
+    });
+
+    scaleRootInput.addEventListener('change', (e) => {
+        state.scaleRoot = parseInt(e.target.value) || 0;
+    });
+
+    scaleSelect.addEventListener('change', (e) => {
+        const idx = e.target.value;
+        if (idx !== "") {
+            state.selectedScale = window.scalesList[idx];
+        } else {
+            state.selectedScale = null;
+        }
+    });
 
     // --- AUDIO INIT ---
     async function initAudio() {
@@ -355,19 +442,133 @@
         initMidi();
     }
 
+    // --- MIDI INIT & HANDLER ---
     async function initMidi() {
         if (navigator.requestMIDIAccess) {
             try {
                 midiAccess = await navigator.requestMIDIAccess();
-                const sel = document.getElementById('midiSelect');
+                
+                // Outputs
+                const outSel = document.getElementById('midiOutputSelect');
                 midiAccess.outputs.forEach(o => {
                     const opt = document.createElement('option');
                     opt.value = o.id; opt.text = o.name;
-                    sel.appendChild(opt);
+                    outSel.appendChild(opt);
                 });
-                sel.addEventListener('change', e => midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null);
-            } catch(e) {}
+                outSel.addEventListener('change', e => midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null);
+
+                // Inputs
+                const inSel = document.getElementById('midiInputSelect');
+                midiAccess.inputs.forEach(i => {
+                    const opt = document.createElement('option');
+                    opt.value = i.id; opt.text = i.name;
+                    inSel.appendChild(opt);
+                });
+                inSel.addEventListener('change', e => {
+                    if (midiInput) midiInput.onmidimessage = null; // Clear old
+                    if (e.target.value) {
+                        midiInput = midiAccess.inputs.get(e.target.value);
+                        midiInput.onmidimessage = onMidiMessage;
+                    } else {
+                        midiInput = null;
+                    }
+                });
+
+            } catch(e) { console.error("MIDI Init Failed", e); }
         }
+    }
+
+    function onMidiMessage(event) {
+        const [status, data1, data2] = event.data;
+        const command = status & 0xF0;
+        // const channel = status & 0x0F;
+
+        // Note On (144)
+        if (command === 144 && data2 > 0) {
+            handleMidiNoteOn(data1, data2);
+        }
+        // Note Off (128) or Note On with vel 0
+        else if (command === 128 || (command === 144 && data2 === 0)) {
+            handleMidiNoteOff(data1);
+        }
+        // Pitch Bend (224)
+        else if (command === 224) {
+            const val = (data2 << 7) | data1;
+            // Map 0-16383 to -1...1
+            state.bend = (val - 8192) / 8192;
+            updateWheelsFromState();
+        }
+        // Control Change (176) -> Mod Wheel (CC 1)
+        else if (command === 176 && data1 === 1) {
+            state.mod = data2 / 127;
+            updateWheelsFromState();
+        }
+    }
+
+    function updateWheelsFromState() {
+        // Bend
+        const bendEl = document.getElementById('bendWheel');
+        // Convert -1..1 to 100%..0% (since top is 0%)
+        // bend -1 -> 100%, 0 -> 50%, 1 -> 0%
+        const bendPercent = 50 - (state.bend * 50);
+        bendEl.querySelector('.wheel-mark').style.top = `${bendPercent}%`;
+        
+        // Mod
+        const modEl = document.getElementById('modWheel');
+        const modPercent = 100 - (state.mod * 100);
+        modEl.querySelector('.wheel-mark').style.top = `${modPercent}%`;
+        if(vibratoGain) vibratoGain.gain.setTargetAtTime(state.mod*50, audioCtx.currentTime, 0.05);
+
+        // Update voices
+        activeVoices.forEach(v => v.refreshPitch());
+    }
+
+    function handleMidiNoteOn(note, velocity) {
+        if (!audioCtx) return;
+        
+        // Linear Mapping Logic
+        // Anchor: Middle C (60) maps to Base Freq (default octave)
+        const anchorNote = 60;
+        const delta = note - anchorNote;
+        
+        const count = state.customMode ? state.customSettings.count : state.edo;
+        
+        // Calculate Octave Shift & Step Index
+        // Use Math.floor to handle negative deltas correctly
+        const octaveChange = Math.floor(delta / count);
+        const stepIndex = ((delta % count) + count) % count; // Positive modulo
+        
+        // Convert to Visual Coordinates for "start" function
+        const mappedOctave = octaveChange; 
+        
+        let ringIndex;
+        if (state.invertOctaves) {
+            ringIndex = mappedOctave - LOWEST_OCTAVE;
+        } else {
+            ringIndex = BASE_OCTAVE_HIGH - mappedOctave;
+        }
+        
+        if (ringIndex < 0) ringIndex = 0;
+        if (ringIndex >= CIRCLE_COUNT) ringIndex = CIRCLE_COUNT - 1;
+        
+        const currentMaxRadius = baseRadius * state.zoom;
+        const step = currentMaxRadius / CIRCLE_COUNT;
+        const radius = (ringIndex + 0.5) * step; // Middle of the ring
+        
+        const fraction = stepIndex / count;
+        const normalizedAngle = fraction * (Math.PI * 2);
+        const angle = normalizedAngle - (Math.PI / 2);
+        
+        // 3. To Cartesian
+        const visualX = centerX + Math.cos(angle) * radius;
+        const visualY = centerY + Math.sin(angle) * radius;
+        
+        // Trigger Start (use MIDI Note number as ID so we can stop it later)
+        startInput('midi_' + note, visualX, visualY);
+    }
+
+    function handleMidiNoteOff(note) {
+        endInput('midi_' + note);
     }
 
     // --- CALCULATIONS ---
@@ -468,7 +669,7 @@
         start() {
             const freq = applyBend(this.baseFreq);
 
-            // MIDI
+            // MIDI OUT
             if (midiOutput) {
                 const ch = midiChannels.findIndex(c => !c);
                 if (ch !== -1) {
@@ -576,7 +777,7 @@
     function arpScheduler() {
         if (!state.arp || arpNotes.length === 0) return;
         
-        // Sort notes low to high
+        // Sort notes low to high to establish the "pool"
         arpNotes.sort((a,b) => a.freq - b.freq);
 
         const currentTime = audioCtx.currentTime;
@@ -584,8 +785,18 @@
         
         // Schedule ahead
         while (nextNoteTime < currentTime + 0.1) {
-            if (arpIndex >= arpNotes.length) arpIndex = 0;
-            const noteData = arpNotes[arpIndex];
+            // PATTERN LOGIC
+            const pattern = state.arpPattern;
+            if (pattern.length === 0) return;
+
+            // Get the pattern step. Modulo by pattern length to loop pattern.
+            const patternStep = pattern[arpIndex % pattern.length];
+            
+            // Map pattern step (0-based) to available notes.
+            // Use modulo in case pattern number > available notes
+            const noteIndex = patternStep % arpNotes.length;
+            
+            const noteData = arpNotes[noteIndex];
             
             // Create a temporary voice for ARP
             const arpVoice = new Voice(-Date.now(), noteData, noteDuration * 0.9);
@@ -611,6 +822,65 @@
 
     // --- INPUT HANDLING ---
 
+    function startInput(id, x, y) {
+        if(!audioCtx) return;
+        
+        const data = calculateParams(x, y);
+        
+        if (state.arp) {
+            // Add to ARP list
+            arpNotes.push({ ...data, id: id });
+            // Reset timer if starting fresh
+            if (arpNotes.length === 1) {
+                nextNoteTime = audioCtx.currentTime;
+                arpIndex = 0; // Restart pattern
+            }
+        } else {
+            // Standard Play
+            activeVoices.set(id, new Voice(id, data));
+        }
+    }
+
+    function moveInput(id, x, y) {
+        const data = calculateParams(x, y);
+        if (state.arp) {
+            const idx = arpNotes.findIndex(n => n.id === id);
+            if (idx !== -1) arpNotes[idx] = { ...data, id: id };
+        } else {
+            if (activeVoices.has(id)) activeVoices.get(id).update(data);
+        }
+    }
+
+    function endInput(id) {
+        if (state.arp) {
+            if (!state.hold) {
+                arpNotes = arpNotes.filter(n => n.id !== id);
+            } else {
+                // ARP + HOLD: Latch the note
+                const note = arpNotes.find(n => n.id === id);
+                if (note) {
+                    note.id = 'latched_' + Date.now() + Math.random();
+                }
+            }
+        } else {
+            if (state.hold) {
+                // HOLD: Latch the drone
+                const v = activeVoices.get(id);
+                if(v) {
+                     const newId = 'held_' + Date.now() + Math.random();
+                     activeVoices.delete(id);
+                     activeVoices.set(newId, v);
+                     v.id = newId;
+                }
+            } else {
+                if (activeVoices.has(id)) {
+                    activeVoices.get(id).stop();
+                    activeVoices.delete(id);
+                }
+            }
+        }
+    }
+
     function initCanvas() {
         canvas = document.getElementById('synthCanvas');
         ctx = canvas.getContext('2d');
@@ -626,92 +896,39 @@
         observer.observe(container);
         resize();
 
-        // Handlers
-        const start = (id, x, y) => {
-            if(!audioCtx) return;
-            const rect = canvas.getBoundingClientRect();
-            const data = calculateParams(x - rect.left, y - rect.top);
-            if (data.radius > baseRadius * state.zoom * 1.1) return;
-
-            if (state.arp) {
-                // Add to ARP list
-                arpNotes.push({ ...data, id: id });
-                // Reset timer if starting fresh
-                if (arpNotes.length === 1) nextNoteTime = audioCtx.currentTime;
-            } else {
-                // Standard Play
-                activeVoices.set(id, new Voice(id, data));
-            }
-        };
-
-        const move = (id, x, y) => {
-            const rect = canvas.getBoundingClientRect();
-            const data = calculateParams(x - rect.left, y - rect.top);
-            
-            if (state.arp) {
-                // Update only if ID matches (don't update latched notes)
-                const idx = arpNotes.findIndex(n => n.id === id);
-                if (idx !== -1) arpNotes[idx] = { ...data, id: id };
-            } else {
-                if (activeVoices.has(id)) activeVoices.get(id).update(data);
-            }
-        };
-
-        const end = (id) => {
-            if (state.arp) {
-                if (!state.hold) {
-                    // Standard ARP behavior: remove on lift
-                    arpNotes = arpNotes.filter(n => n.id !== id);
-                } else {
-                    // ARP + HOLD: Latch the note!
-                    // Change ID so mouse movement doesn't affect it, and start() doesn't overwrite it
-                    const note = arpNotes.find(n => n.id === id);
-                    if (note) {
-                        note.id = 'latched_' + Date.now() + Math.random();
-                    }
-                }
-            } else {
-                if (state.hold) {
-                    // Standard HOLD: Latch the drone!
-                    const v = activeVoices.get(id);
-                    if(v) {
-                         // Switch ID so we can click again with same mouse/touch ID
-                         const newId = 'held_' + Date.now() + Math.random();
-                         activeVoices.delete(id);
-                         activeVoices.set(newId, v);
-                         v.id = newId;
-                    }
-                } else {
-                    if (activeVoices.has(id)) {
-                        activeVoices.get(id).stop();
-                        activeVoices.delete(id);
-                    }
-                }
-            }
-        };
-
-        // Events
-        canvas.addEventListener('mousedown', e => start('m', e.clientX, e.clientY));
-        window.addEventListener('mousemove', e => move('m', e.clientX, e.clientY));
-        window.addEventListener('mouseup', () => end('m'));
+        // Mouse Handlers
+        canvas.addEventListener('mousedown', e => {
+            const r = canvas.getBoundingClientRect();
+            startInput('m', e.clientX - r.left, e.clientY - r.top);
+        });
+        window.addEventListener('mousemove', e => {
+            const r = canvas.getBoundingClientRect();
+            moveInput('m', e.clientX - r.left, e.clientY - r.top);
+        });
+        window.addEventListener('mouseup', () => endInput('m'));
         
+        // Touch Handlers
         canvas.addEventListener('touchstart', e => {
             e.preventDefault();
+            const r = canvas.getBoundingClientRect();
             for(let i=0; i<e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
-                start(t.identifier, t.clientX, t.clientY);
+                startInput(t.identifier, t.clientX - r.left, t.clientY - r.top);
             }
         }, {passive:false});
+        
         canvas.addEventListener('touchmove', e => {
             e.preventDefault();
+            const r = canvas.getBoundingClientRect();
             for(let i=0; i<e.changedTouches.length; i++) {
                 const t = e.changedTouches[i];
-                move(t.identifier, t.clientX, t.clientY);
+                moveInput(t.identifier, t.clientX - r.left, t.clientY - r.top);
             }
         }, {passive:false});
+        
         const touchEnd = e => {
             e.preventDefault();
-            for(let i=0; i<e.changedTouches.length; i++) end(e.changedTouches[i].identifier);
+            for(let i=0; i<e.changedTouches.length; i++) endInput(e.changedTouches[i].identifier);
         };
         canvas.addEventListener('touchend', touchEnd);
         canvas.addEventListener('touchcancel', touchEnd);
@@ -739,8 +956,19 @@
         grad.addColorStop(0, '#111'); grad.addColorStop(1, '#000');
         ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(centerX, centerY, currentMaxR, 0, Math.PI*2); ctx.fill();
 
+        // Laske aktiiviset asteikon nuotit (Gridiä varten)
+        const activeScaleIndices = new Set();
+        if (state.selectedScale && !state.customMode) {
+            let noteIndex = state.scaleRoot;
+            activeScaleIndices.add(noteIndex % state.edo); // Root note (0 step)
+            
+            for (let stepVal of state.selectedScale.steps) {
+                noteIndex += stepVal;
+                activeScaleIndices.add(noteIndex % state.edo);
+            }
+        }
+
         // Grid Lines
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
         const sectorCount = state.customMode ? state.customSettings.count : state.edo;
         
         for (let i = 0; i < sectorCount; i++) {
@@ -754,17 +982,39 @@
             
             ctx.beginPath(); ctx.moveTo(centerX, centerY);
             ctx.lineTo(centerX + Math.cos(angle)*currentMaxR, centerY + Math.sin(angle)*currentMaxR);
+            
+            // Väritä viiva jos se kuuluu valittuun asteikkoon
+            if (!state.customMode && state.selectedScale && activeScaleIndices.has(i)) {
+                ctx.strokeStyle = 'var(--accent)'; // Kirkas väri
+                ctx.lineWidth = 2;
+            } else {
+                ctx.strokeStyle = '#222';
+                ctx.lineWidth = 1;
+            }
+            
             ctx.stroke();
 
-            // Labels (Standard 12 only)
-            if (state.edo === 12 && !state.customMode && activeVoices.size === 0 && arpNotes.length === 0) {
+            // Labels
+            if (!state.customMode) {
                 const labelR = currentMaxR + 20;
                 if(labelR < Math.min(width, height)) {
                     ctx.fillStyle = '#444'; ctx.font = '12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
-                    ctx.fillText(NOTE_NAMES[i], centerX + Math.cos(angle)*labelR, centerY + Math.sin(angle)*labelR);
+                    
+                    let labelText = (i + 1).toString();
+
+                    if (state.edo === 12) {
+                        labelText = NOTE_NAMES[i % 12];
+                    } else if (state.edo === 31) {
+                        labelText = NOTE_NAMES_31[i % 31];
+                    }
+
+                    ctx.fillText(labelText, centerX + Math.cos(angle)*labelR, centerY + Math.sin(angle)*labelR);
                 }
             }
         }
+        
+        // Reset line width for circles
+        ctx.lineWidth = 1;
 
         // Circles
         for (let i = 0; i < CIRCLE_COUNT; i++) {
@@ -773,7 +1023,7 @@
             ctx.beginPath(); ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
             ctx.strokeStyle = '#333'; ctx.stroke();
 
-            // Notes Dots
+            // Notes Dots (vain snap modessa)
             if (state.snapToGrid) {
                 ctx.fillStyle = '#222';
                 for (let j = 0; j < sectorCount; j++) {
@@ -808,10 +1058,8 @@
         arpNotes.forEach(n => {
             const freq = Math.round(applyBend(n.freq));
             if (n.id === currentArpId) {
-                // Flash bright white and bigger for playing note
                 drawVoice(n.visualX, n.visualY, freq + "Hz", '#ffffff', 20);
             } else {
-                // Dimmer green for queued notes
                 drawVoice(n.visualX, n.visualY, freq + "Hz", '#00aa00', 12);
             }
         });
@@ -837,7 +1085,6 @@
             const div = document.createElement('div');
             div.className = 'ratio-row';
             const existing = state.customSettings.ratios[i];
-            // Default to EDO if new
             const val = existing || Math.pow(2, i/count);
             div.innerHTML = `<span>Ratio ${i+1}:</span><input type="number" step="0.0001" value="${val.toFixed(4)}" class="ratio-input">`;
             ratioContainer.appendChild(div);
@@ -846,7 +1093,6 @@
 
     document.getElementById('customNoteCount').addEventListener('change', generateRatioInputs);
     document.getElementById('closeCustomBtn').addEventListener('click', () => {
-        // Update state from inputs
         const inputs = document.querySelectorAll('.ratio-input');
         state.customSettings.count = inputs.length;
         state.customSettings.ratios = Array.from(inputs).map(inp => parseFloat(inp.value));
@@ -879,7 +1125,7 @@
                 const s = JSON.parse(ev.target.result);
                 if(s.count && s.ratios) {
                     state.customSettings = s;
-                    generateRatioInputs(); // Refresh UI if open
+                    generateRatioInputs(); 
                     document.getElementById('customNoteCount').value = s.count;
                 }
             } catch(e) { alert("Invalid JSON"); }
@@ -892,6 +1138,8 @@
     document.getElementById('startBtn').addEventListener('click', async () => {
         document.getElementById('start-overlay').style.display = 'none';
         await initAudio();
+        // Initialize scales once scaleList.js is loaded
+        populateScaleList();
         initWheels();
         initCanvas();
         animate();
@@ -903,23 +1151,20 @@
         document.getElementById('arpBtn').classList.toggle('active', state.arp);
         
         if (state.arp) {
-            // Transition: If HOLD is ON and we have drones, transfer them to ARP
             if (state.hold && activeVoices.size > 0) {
                 activeVoices.forEach((v, key) => {
                     arpNotes.push({ 
                         freq: v.baseFreq, 
                         visualX: v.visualX, 
                         visualY: v.visualY,
-                        id: 'transferred_' + Math.random() // Unique ID to keep it
+                        id: 'transferred_' + Math.random() 
                     });
                     v.stop();
                 });
                 activeVoices.clear();
-                // Reset ARP timer
                 nextNoteTime = audioCtx.currentTime;
             }
         } else {
-            // ARP Off: Clear notes
             arpNotes = [];
             currentArpId = null;
         }
@@ -929,13 +1174,8 @@
         state.hold = !state.hold;
         document.getElementById('holdBtn').classList.toggle('active', state.hold);
         if (!state.hold) {
-            // Panic Mode: Kill all held/latched notes
-            
-            // 1. Kill Standard Drones
             activeVoices.forEach(v => v.stop());
             activeVoices.clear();
-            
-            // 2. Kill ARP latched notes
             if (state.arp) {
                 arpNotes = [];
                 currentArpId = null;
@@ -946,7 +1186,17 @@
     document.getElementById('arpBtn').addEventListener('click', toggleArp);
     document.getElementById('holdBtn').addEventListener('click', toggleHold);
     
-    // Tap Tempo
+    document.getElementById('arpPatternInput').addEventListener('input', e => {
+        const val = e.target.value;
+        const parts = val.trim().split(/\s+/);
+        const seq = [];
+        parts.forEach(p => {
+            const n = parseInt(p);
+            if (!isNaN(n) && n > 0) seq.push(n - 1); 
+        });
+        state.arpPattern = seq.length > 0 ? seq : [0, 1, 2, 3];
+    });
+
     document.getElementById('tapBtn').addEventListener('click', () => {
         const now = Date.now();
         if(tapTimes.length > 0 && now - tapTimes[tapTimes.length-1] > 2000) tapTimes = [];
@@ -963,17 +1213,20 @@
     });
     document.getElementById('tempoInput').addEventListener('change', e => state.tempo = parseInt(e.target.value));
 
-    // Keyboard Shortcuts
     window.addEventListener('keydown', e => {
         if (e.key.toLowerCase() === 'h') toggleHold();
         if (e.key.toLowerCase() === 'r') toggleArp();
     });
 
-    // Standard Controls
     document.getElementById('zoomSlider').addEventListener('input', e => { state.zoom = parseFloat(e.target.value); resize(); });
     document.getElementById('invertBtn').addEventListener('click', e => { state.invertOctaves = !state.invertOctaves; e.target.classList.toggle('active'); });
     document.getElementById('notesBtn').addEventListener('click', e => { state.snapToGrid = !state.snapToGrid; e.target.classList.toggle('active'); });
-    document.getElementById('edoInput').addEventListener('change', e => { state.edo = parseInt(e.target.value) || 12; });
+    
+    document.getElementById('edoInput').addEventListener('change', e => { 
+        state.edo = parseInt(e.target.value) || 12; 
+        populateScaleList(); // Refresh scales when EDO changes
+    });
+    
     document.getElementById('baseFreqInput').addEventListener('input', e => state.baseFreq = parseFloat(e.target.value) || 261.63);
 
     // Wheels logic
@@ -987,14 +1240,13 @@
         window.addEventListener('mousemove',e=>{if(bending){
             const val = getVal(e, bendEl);
             state.bend = (val - 0.5) * 2;
-            bendEl.querySelector('.wheel-mark').style.top = (1-val)*100 + "%";
-            activeVoices.forEach(v => v.refreshPitch());
+            updateWheelsFromState();
             sendGlobalPitchBend();
         }});
         window.addEventListener('mouseup',e=>{if(bending){
             bending=false; state.bend=0;
             const m=bendEl.querySelector('.wheel-mark'); m.style.transition='top 0.2s'; m.style.top='50%'; setTimeout(()=>m.style.transition='',200);
-            activeVoices.forEach(v => v.refreshPitch());
+            updateWheelsFromState();
             sendGlobalPitchBend();
         }});
 
@@ -1003,21 +1255,19 @@
         window.addEventListener('mousemove',e=>{if(modding){
             const val = getVal(e, modEl);
             state.mod = val;
-            modEl.querySelector('.wheel-mark').style.top = (1-val)*100 + "%";
-            if(vibratoGain) vibratoGain.gain.setTargetAtTime(val*50, audioCtx.currentTime, 0.05);
+            updateWheelsFromState();
             sendGlobalMod();
         }});
         window.addEventListener('mouseup',e=>{modding=false;});
     }
 
-    function sendGlobalPitchBend() { /* Handled per voice in MPE/Poly mode */ }
+    function sendGlobalPitchBend() { }
     function sendGlobalMod() {
         if(!midiOutput) return;
         const val = Math.floor(state.mod * 127);
         for(let i=0; i<16; i++) if(midiChannels[i]) midiOutput.send([0xB0+i, 1, val]);
     }
 
-    // Files
     document.getElementById('sampleInput').addEventListener('change', e => {
         const f = e.target.files[0]; if(!f)return; sf2Loaded=false;
         const r=new FileReader(); r.onload=ev=>{
