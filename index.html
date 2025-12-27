@@ -348,6 +348,7 @@
     let audioCtx;
     let mainGain;
     let customBuffer = null;
+    let sound1Buffer = null; // Buffer for sound1.wav
     let sf2Synth = null;
     let sf2Loaded = false;
     let vibratoLfo, vibratoGain;
@@ -423,7 +424,51 @@
         }
     });
 
-    // --- AUDIO INIT ---
+    // --- AUDIO INIT & CROSSFADE ---
+    
+    // Funktio, joka polttaa ristiinhäivytyksen loopin loppuun
+    function applyCrossfadeToBuffer(originalBuffer, loopStart, loopEnd, crossfadeDuration) {
+        // Luodaan kopio bufferista, jotta emme muokkaa alkuperäistä dataa väärin (vaikka sound1 tapauksessa tämä on ainoa käyttö)
+        const numberOfChannels = originalBuffer.numberOfChannels;
+        const sampleRate = originalBuffer.sampleRate;
+        const newBuffer = audioCtx.createBuffer(numberOfChannels, originalBuffer.length, sampleRate);
+
+        for (let channel = 0; channel < numberOfChannels; channel++) {
+            const oldData = originalBuffer.getChannelData(channel);
+            const newData = newBuffer.getChannelData(channel);
+            
+            // Kopioidaan data sellaisenaan
+            newData.set(oldData);
+
+            // Lasketaan sample-indeksit
+            const startSample = Math.floor(loopStart * sampleRate);
+            const endSample = Math.floor(loopEnd * sampleRate);
+            const fadeSamples = Math.floor(crossfadeDuration * sampleRate);
+
+            // Varmistetaan, ettei mennä bufferin yli
+            if (endSample > newData.length) continue;
+
+            // Suoritetaan ristiinhäivytys loopin lopussa (ennen hyppyä alkuun)
+            // Sekoitetaan loopin alkua (startSample) loopin loppuun (endSample)
+            for (let i = 0; i < fadeSamples; i++) {
+                const targetIndex = endSample - fadeSamples + i; // Kohta bufferissa ennen loopEndiä
+                const sourceIndex = startSample + i; // Kohta loopin alusta
+                
+                if (targetIndex >= newData.length || sourceIndex >= newData.length) continue;
+
+                // Lineaarinen ristiinhäivytys
+                // Kun i kasvaa: gainOut menee 1 -> 0 (vanha ääni vaimenee)
+                //               gainIn menee 0 -> 1 (loopin alku voimistuu)
+                const progress = i / fadeSamples;
+                const gainOut = 1.0 - progress;
+                const gainIn = progress;
+
+                newData[targetIndex] = (newData[targetIndex] * gainOut) + (newData[sourceIndex] * gainIn);
+            }
+        }
+        return newBuffer;
+    }
+
     async function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -437,6 +482,21 @@
             vibratoGain.gain.value = 0;
             vibratoLfo.connect(vibratoGain);
             vibratoLfo.start();
+
+            // Yritetään ladata sound1.wav
+            try {
+                const response = await fetch('sound1.wav');
+                if (response.ok) {
+                    const arrayBuffer = await response.arrayBuffer();
+                    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+                    // Käsitellään ristiinhäivytys: 0.4s -> 1.4s, 50ms (0.05s) häivytyksellä
+                    sound1Buffer = applyCrossfadeToBuffer(decoded, 0.4, 1.4, 0.05);
+                    console.log("sound1.wav loaded and crossfaded.");
+                    statusText.innerText = "Sound1 Ready";
+                }
+            } catch (e) {
+                console.log("sound1.wav not found or failed to load, using default synth.");
+            }
         }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         initMidi();
@@ -688,14 +748,30 @@
                 const note = Math.round(69 + 12 * Math.log2(freq / 440));
                 this.sf2Note = note;
                 sf2Synth.noteOn(0, note, 100);
-            } else if (customBuffer) {
+            } 
+            else if (customBuffer) {
+                // Käyttäjän lataama sample
                 this.source = audioCtx.createBufferSource();
                 this.source.buffer = customBuffer;
                 this.source.loop = true;
                 this.source.playbackRate.value = freq / state.baseFreq;
                 this.source.connect(this.gain);
                 this.source.start(0);
-            } else {
+            }
+            else if (sound1Buffer) {
+                // Sound1.wav käytössä (automaattisesti ladattu)
+                this.source = audioCtx.createBufferSource();
+                this.source.buffer = sound1Buffer;
+                this.source.loop = true;
+                this.source.loopStart = 0.4;
+                this.source.loopEnd = 1.4;
+                // Base Hz sound1.wav:lle on 261.63
+                this.source.playbackRate.value = freq / 261.63;
+                this.source.connect(this.gain);
+                this.source.start(0);
+            } 
+            else {
+                // Oletus synteettinen ääni
                 this.source = audioCtx.createOscillator();
                 this.source.type = 'sawtooth';
                 this.source.frequency.value = freq;
@@ -729,8 +805,10 @@
             
             if (this.source && !sf2Loaded) {
                 const now = audioCtx.currentTime;
-                if(customBuffer) {
+                if (customBuffer) {
                      this.source.playbackRate.setTargetAtTime(freq / state.baseFreq, now, 0.02);
+                } else if (sound1Buffer) {
+                     this.source.playbackRate.setTargetAtTime(freq / 261.63, now, 0.02);
                 } else {
                      this.source.frequency.setTargetAtTime(freq, now, 0.02);
                 }
@@ -763,7 +841,7 @@
             if (sf2Loaded && sf2Synth && this.sf2Note) sf2Synth.noteOff(0, this.sf2Note);
             
             if (this.source) {
-                try { if(vibratoGain && !customBuffer) vibratoGain.disconnect(this.source.frequency); } catch(e){}
+                try { if(vibratoGain && !customBuffer && !sound1Buffer) vibratoGain.disconnect(this.source.frequency); } catch(e){}
                 const now = audioCtx.currentTime;
                 this.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 this.source.stop(now + 0.15);
