@@ -514,7 +514,14 @@
                     // Ei tehdä mitään, tiedostoa ei löytynyt
                 }
             }
-            if (loadedCount > 0) statusText.innerText = `${loadedCount} Sounds Ready`;
+            if (loadedCount > 0) {
+                statusText.innerText = `${loadedCount} Sounds Ready`;
+                // Jos ääniä löytyi, poista oletus Synth vaihtoehto
+                const synthOpt = soundSelect.querySelector('option[value="synth"]');
+                if (synthOpt) {
+                    soundSelect.removeChild(synthOpt);
+                }
+            }
         }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         initMidi();
@@ -1345,8 +1352,25 @@
     document.getElementById('notesBtn').addEventListener('click', e => { state.snapToGrid = !state.snapToGrid; e.target.classList.toggle('active'); });
     
     document.getElementById('edoInput').addEventListener('change', e => { 
-        state.edo = parseInt(e.target.value) || 12; 
-        populateScaleList(); // Refresh scales when EDO changes
+        const oldEdo = state.edo;
+        const newEdo = parseInt(e.target.value) || 12;
+
+        // Asteikon mukautus uuteen EDOon
+        if (state.selectedScale && oldEdo !== newEdo) {
+            const ratio = newEdo / oldEdo;
+            // Muunnetaan askeleet ja pyöristetään lähimpään kokonaislukuun
+            const newSteps = state.selectedScale.steps.map(step => Math.round(step * ratio));
+            
+            // Luodaan uusi tilapäinen asteikko-objekti
+            state.selectedScale = {
+                ...state.selectedScale,
+                steps: newSteps,
+                name: `${state.selectedScale.name} (Adapted)`
+            };
+        }
+
+        state.edo = newEdo;
+        populateScaleList(); 
     });
     
     document.getElementById('baseFreqInput').addEventListener('input', e => state.baseFreq = parseFloat(e.target.value) || 261.63);
