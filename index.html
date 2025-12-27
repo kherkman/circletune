@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Futuristic Orbital Synth EDO</title>
+    <title>Futuristic Orbital Synth: Ultimate Edition</title>
     <style>
         :root {
             --bg-color: #050505;
@@ -42,7 +42,7 @@
             z-index: 10;
             border-bottom: 1px solid var(--border);
             font-size: 0.75rem;
-            min-height: 80px;
+            min-height: 85px;
         }
 
         .control-group {
@@ -54,9 +54,9 @@
 
         .separator {
             width: 1px;
-            height: 40px;
+            height: 50px;
             background: #333;
-            margin: 0 5px;
+            margin: 0 2px;
         }
 
         label {
@@ -76,7 +76,8 @@
             outline: none;
         }
 
-        /* Range Slider */
+        /* Inputs */
+        input[type="number"] { text-align: center; }
         input[type="range"] {
             -webkit-appearance: none;
             width: 80px;
@@ -93,46 +94,25 @@
             cursor: pointer;
         }
 
-        /* Buttonit */
+        /* Buttons */
         button {
             cursor: pointer;
             font-weight: bold;
             text-transform: uppercase;
             color: var(--accent);
             transition: all 0.2s;
-            min-width: 60px;
+            min-width: 40px;
         }
         button:hover { background: #333; box-shadow: 0 0 5px var(--accent); }
         button.active { background: var(--accent-active); border-color: var(--accent-active); color: #fff; }
 
-        /* WHEELS (Pyörät) */
-        .wheel-container {
-            display: flex;
-            gap: 10px;
-            padding: 0 10px;
-        }
-        .wheel-wrapper {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-        }
+        /* WHEELS */
+        .wheel-container { display: flex; gap: 8px; }
+        .wheel-wrapper { display: flex; flex-direction: column; align-items: center; gap: 2px; }
         .wheel {
-            width: 30px;
+            width: 25px;
             height: 60px;
-            background: linear-gradient(to bottom, 
-                var(--wheel-bg) 0%, 
-                var(--wheel-groove) 10%, 
-                var(--wheel-bg) 20%, 
-                var(--wheel-groove) 30%, 
-                var(--wheel-bg) 40%, 
-                var(--wheel-groove) 50%, 
-                var(--wheel-bg) 60%, 
-                var(--wheel-groove) 70%, 
-                var(--wheel-bg) 80%, 
-                var(--wheel-groove) 90%, 
-                var(--wheel-bg) 100%
-            );
+            background: linear-gradient(to bottom, var(--wheel-bg) 0%, var(--wheel-groove) 10%, var(--wheel-bg) 20%, var(--wheel-groove) 30%, var(--wheel-bg) 40%, var(--wheel-groove) 50%, var(--wheel-bg) 60%, var(--wheel-groove) 70%, var(--wheel-bg) 80%, var(--wheel-groove) 90%, var(--wheel-bg) 100%);
             border: 2px solid #444;
             border-radius: 4px;
             position: relative;
@@ -140,60 +120,70 @@
             box-shadow: inset 0 0 10px #000;
         }
         .wheel-mark {
-            position: absolute;
-            left: 0; right: 0;
-            height: 2px;
-            background: var(--accent);
-            box-shadow: 0 0 5px var(--accent);
-            pointer-events: none;
+            position: absolute; left: 0; right: 0; height: 2px;
+            background: var(--accent); box-shadow: 0 0 5px var(--accent); pointer-events: none;
         }
-        
+
+        /* Custom Modal */
+        #customModal {
+            display: none;
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 200;
+            justify-content: center; align-items: center;
+        }
+        .modal-content {
+            background: #151515; border: 1px solid var(--accent);
+            padding: 20px; border-radius: 8px; width: 300px;
+            max-height: 80vh; overflow-y: auto;
+            box-shadow: 0 0 30px rgba(0,0,0,0.8);
+            display: flex; flex-direction: column; gap: 10px;
+        }
+        .ratio-row { display: flex; gap: 10px; align-items: center; justify-content: space-between; font-size: 0.8rem; color: #aaa; }
+        .ratio-row input { width: 80px; }
+
         /* Canvas */
         #canvas-container {
-            flex-grow: 1;
-            position: relative;
-            cursor: crosshair;
-            overflow: hidden;
-            width: 100%;
+            flex-grow: 1; position: relative; cursor: crosshair; overflow: hidden; width: 100%;
         }
-        canvas { 
-            display: block; 
-            width: 100%;
-            height: 100%;
-        }
+        canvas { display: block; width: 100%; height: 100%; }
 
         /* Overlay */
         #start-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(0,0,0,0.92);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            flex-direction: column;
+            display: flex; justify-content: center; align-items: center; flex-direction: column;
             z-index: 100;
         }
-        h1 {
-            font-weight: 300;
-            letter-spacing: 4px;
-            text-shadow: 0 0 10px var(--accent);
-            margin-bottom: 20px;
-            text-align: center;
-        }
-        .status {
-            font-size: 0.7rem;
-            color: #ff9900;
-            margin-left: 5px;
-            white-space: nowrap;
-        }
+        h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent); margin-bottom: 20px; text-align: center; }
+        .status { font-size: 0.7rem; color: #ff9900; margin-left: 5px; white-space: nowrap; }
     </style>
-    <!-- SF2 Library -->
     <script type="module">
         import { SpessaSynth } from 'https://esm.sh/spessasynth_lib@1.0.8';
         window.SpessaSynthLib = SpessaSynth;
     </script>
 </head>
 <body>
+
+<!-- CUSTOM SETTINGS MODAL -->
+<div id="customModal">
+    <div class="modal-content">
+        <h3 style="margin:0; text-align:center; color:var(--accent);">CUSTOM TUNING</h3>
+        <div class="ratio-row">
+            <span>Nuotteja/oktaavi:</span>
+            <input type="number" id="customNoteCount" value="12" min="1" max="96">
+        </div>
+        <div id="ratioContainer" style="display:flex; flex-direction:column; gap:5px; border-top:1px solid #333; padding-top:10px;">
+            <!-- Generated dynamically -->
+        </div>
+        <div style="display:flex; gap:10px; margin-top:10px;">
+            <button id="saveCustomBtn" style="flex:1;">Tallenna</button>
+            <button id="loadCustomBtn" style="flex:1;">Lataa</button>
+            <input type="file" id="loadCustomFile" accept=".json" style="display:none;">
+        </div>
+        <button id="closeCustomBtn" style="margin-top:5px; background:#333; color:#fff;">Sulje</button>
+    </div>
+</div>
 
 <div id="controls">
     <!-- WHEELS -->
@@ -210,46 +200,63 @@
 
     <div class="separator"></div>
 
-    <!-- SETTINGS -->
+    <!-- PLAY MODES: ARP & HOLD -->
     <div class="control-group">
-        <label>Zoom</label>
-        <input type="range" id="zoomSlider" min="0.5" max="2.5" step="0.1" value="1.0">
-    </div>
-    
-    <div class="control-group">
-        <label>Mode</label>
+        <label>Play Mode</label>
         <div style="display:flex; gap:5px;">
+            <button id="arpBtn" title="Shortcut: R">ARP</button>
+            <button id="holdBtn" title="Shortcut: H">HOLD</button>
+        </div>
+        <div style="display:flex; gap:2px; align-items:center; margin-top:2px;">
+            <input type="number" id="tempoInput" value="120" style="width:40px;" title="BPM">
+            <button id="tapBtn" style="font-size:0.6rem; padding:4px 6px;">TAP</button>
+        </div>
+    </div>
+
+    <div class="separator"></div>
+
+    <!-- TUNING -->
+    <div class="control-group">
+        <label>Tuning</label>
+        <div style="display:flex; gap:5px;">
+            <div style="display:flex; flex-direction:column; gap:2px;">
+                <button id="customToggleBtn">OFF</button>
+                <label style="font-size:0.5rem;">Custom</label>
+            </div>
+            <button id="customEditBtn">EDIT</button>
+        </div>
+    </div>
+
+    <div class="control-group">
+        <label>EDO / Hz</label>
+        <div style="display:flex; gap:5px;">
+            <input type="number" id="edoInput" value="12" style="width: 35px;" title="EDO Steps">
+            <input type="number" id="baseFreqInput" value="261" style="width: 40px;" title="Base Hz">
+        </div>
+    </div>
+
+    <div class="separator"></div>
+
+    <!-- GENERAL SETTINGS -->
+    <div class="control-group">
+        <label>View</label>
+        <input type="range" id="zoomSlider" min="0.5" max="2.5" step="0.1" value="1.0" style="width:60px;">
+        <div style="display:flex; gap:2px;">
             <button id="notesBtn">Notes</button>
             <button id="invertBtn">Invert</button>
         </div>
     </div>
 
-    <div class="control-group">
-        <label>EDO</label>
-        <input type="number" id="edoInput" value="12" min="1" max="96" style="width: 40px; text-align: center;">
-    </div>
-
     <div class="separator"></div>
 
-    <!-- SOUND & MIDI -->
+    <!-- FILES & MIDI -->
     <div class="control-group">
-        <label>MIDI Out</label>
-        <select id="midiSelect" style="width: 100px;">
-            <option value="">- Off -</option>
-        </select>
-    </div>
-
-    <div class="control-group">
-        <label>Sample / SF2</label>
-        <div style="display:flex; flex-direction:column; gap:2px;">
-            <input type="file" id="sampleInput" accept="audio/*" style="width: 130px;">
-            <input type="file" id="sf2Input" accept=".sf2" style="width: 130px;">
+        <label>Source / MIDI</label>
+        <select id="midiSelect" style="width: 90px;"><option value="">- MIDI Off -</option></select>
+        <div style="display:flex; gap:2px;">
+            <input type="file" id="sampleInput" accept="audio/*" style="width: 85px; font-size:0.6rem;">
         </div>
-    </div>
-    
-    <div class="control-group">
-        <label>Base Hz</label>
-        <input type="number" id="baseFreqInput" value="261.63" step="1" style="width: 50px;">
+         <input type="file" id="sf2Input" accept=".sf2" style="width: 85px; font-size:0.6rem;">
     </div>
     
     <div class="status" id="statusText">Valmis</div>
@@ -258,42 +265,55 @@
 <div id="canvas-container">
     <canvas id="synthCanvas"></canvas>
     <div id="start-overlay">
-        <h1>ORBITAL EDO SYNTH</h1>
+        <h1>ORBITAL SYNTH</h1>
         <button id="startBtn" style="font-size: 1.2rem; padding: 15px 30px;">KÄYNNISTÄ</button>
-        <p style="margin-top: 20px; font-size: 0.9em; color: #888;">Multi-touch &bull; EDO &bull; Wheels</p>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #888;">EDO &bull; Custom Scales &bull; ARP &bull; Hold &bull; MIDI</p>
     </div>
 </div>
 
 <script>
     /**
-     * KONFIGURAATIO
+     * CONFIG & STATE
      */
     const CIRCLE_COUNT = 10;
     const BASE_OCTAVE_HIGH = 8; 
     const LOWEST_OCTAVE = -1;
     const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     
-    // Global State
     let state = {
-        edo: 12,
-        snapToGrid: false,
-        invertOctaves: false,
         zoom: 1.0,
+        invertOctaves: false,
+        snapToGrid: false,
+        
+        // Tuning
         baseFreq: 261.63,
-        bend: 0, // -1 ... 1
-        mod: 0   // 0 ... 1
+        edo: 12,
+        customMode: false,
+        customSettings: {
+            count: 12,
+            ratios: [] // Filled dynamically
+        },
+
+        // Play Modes
+        hold: false,
+        arp: false,
+        tempo: 120,
+        
+        // Wheels
+        bend: 0,
+        mod: 0
     };
 
-    // Audio Context
+    // Initialize default custom ratios (12TET)
+    for(let i=0; i<12; i++) state.customSettings.ratios.push(Math.pow(2, i/12));
+
+    // Audio / Engine
     let audioCtx;
     let mainGain;
     let customBuffer = null;
     let sf2Synth = null;
     let sf2Loaded = false;
-    
-    // Vibrato LFO (Global)
-    let vibratoLfo = null;
-    let vibratoGain = null;
+    let vibratoLfo, vibratoGain;
 
     // MIDI
     let midiAccess = null;
@@ -303,116 +323,67 @@
     // Canvas
     let canvas, ctx;
     let width, height, centerX, centerY, baseRadius;
-    const activeVoices = new Map();
+    
+    // Voices & ARP State
+    const activeVoices = new Map(); // For standard/hold mode
+    
+    // ARP Specific
+    let arpNotes = []; // List of currently pressed notes data
+    let nextNoteTime = 0;
+    let arpIndex = 0;
+    let tapTimes = [];
+    let currentArpId = null; // Currently playing ARP note ID for visualization
 
-    // UI Elements
     const statusText = document.getElementById('statusText');
-    const edoInput = document.getElementById('edoInput');
-    const notesBtn = document.getElementById('notesBtn');
 
-    // --- AUDIO & MIDI SETUP ---
-
+    // --- AUDIO INIT ---
     async function initAudio() {
         if (!audioCtx) {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             mainGain = audioCtx.createGain();
             mainGain.gain.value = 0.4;
             mainGain.connect(audioCtx.destination);
-
-            // Alusta LFO
+            
             vibratoLfo = audioCtx.createOscillator();
-            vibratoLfo.frequency.value = 6.0; 
+            vibratoLfo.frequency.value = 6.0;
             vibratoGain = audioCtx.createGain();
             vibratoGain.gain.value = 0;
-            
             vibratoLfo.connect(vibratoGain);
             vibratoLfo.start();
         }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
-        
-        // MIDI Init
+        initMidi();
+    }
+
+    async function initMidi() {
         if (navigator.requestMIDIAccess) {
             try {
                 midiAccess = await navigator.requestMIDIAccess();
-                populateMidiDropdown();
-                midiAccess.onstatechange = populateMidiDropdown;
-                statusText.innerText = "Audio & MIDI OK";
-            } catch (e) {
-                statusText.innerText = "MIDI ei saatavilla";
-            }
+                const sel = document.getElementById('midiSelect');
+                midiAccess.outputs.forEach(o => {
+                    const opt = document.createElement('option');
+                    opt.value = o.id; opt.text = o.name;
+                    sel.appendChild(opt);
+                });
+                sel.addEventListener('change', e => midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null);
+            } catch(e) {}
         }
-    }
-
-    function populateMidiDropdown() {
-        const select = document.getElementById('midiSelect');
-        const current = select.value;
-        select.innerHTML = '<option value="">- Off -</option>';
-        if (!midiAccess) return;
-        for (let output of midiAccess.outputs.values()) {
-            const opt = document.createElement('option');
-            opt.value = output.id;
-            opt.text = output.name;
-            select.appendChild(opt);
-        }
-        if(current) select.value = current;
-    }
-
-    // --- WHEEL LOGIC ---
-
-    function initWheels() {
-        const bendEl = document.getElementById('bendWheel');
-        const modEl = document.getElementById('modWheel');
-        const bendMark = bendEl.querySelector('.wheel-mark');
-        const modMark = modEl.querySelector('.wheel-mark');
-
-        const getVal = (e, el) => {
-            const rect = el.getBoundingClientRect();
-            let val = 1 - (e.clientY - rect.top) / rect.height; 
-            return Math.max(0, Math.min(1, val));
-        };
-
-        // BEND (Spring back)
-        let isBending = false;
-        const updateBend = (val) => {
-            state.bend = (val - 0.5) * 2; 
-            const pct = (1 - val) * 100;
-            bendMark.style.top = `${pct}%`;
-            updateAllVoicesPitch();
-            sendMidiPitchBendGlobal();
-        };
-
-        bendEl.addEventListener('mousedown', (e) => { isBending = true; updateBend(getVal(e, bendEl)); });
-        window.addEventListener('mousemove', (e) => { if (isBending) updateBend(getVal(e, bendEl)); });
-        window.addEventListener('mouseup', () => {
-            if (isBending) {
-                isBending = false;
-                bendMark.style.transition = "top 0.2s ease-out";
-                bendMark.style.top = "50%";
-                state.bend = 0;
-                setTimeout(() => bendMark.style.transition = "", 200);
-                updateAllVoicesPitch();
-                sendMidiPitchBendGlobal();
-            }
-        });
-
-        // MOD (Stay put)
-        let isModding = false;
-        const updateMod = (val) => {
-            state.mod = val; 
-            const pct = (1 - val) * 100;
-            modMark.style.top = `${pct}%`;
-            if (vibratoGain) {
-                vibratoGain.gain.setTargetAtTime(val * 50, audioCtx.currentTime, 0.05); 
-            }
-            sendMidiModWheel();
-        };
-
-        modEl.addEventListener('mousedown', (e) => { isModding = true; updateMod(getVal(e, modEl)); });
-        window.addEventListener('mousemove', (e) => { if (isModding) updateMod(getVal(e, modEl)); });
-        window.addEventListener('mouseup', () => { isModding = false; });
     }
 
     // --- CALCULATIONS ---
+
+    function getCustomRatio(normalizedAngle) {
+        // normalizedAngle 0..1
+        const count = state.customSettings.count;
+        const ratios = state.customSettings.ratios;
+        
+        // Find sector
+        let index = Math.floor(normalizedAngle * count);
+        if (index >= count) index = count - 1;
+        if (index < 0) index = 0;
+        
+        return { ratio: ratios[index], index: index };
+    }
 
     function calculateParams(x, y) {
         const dx = x - centerX;
@@ -422,65 +393,54 @@
         const currentMaxRadius = baseRadius * state.zoom;
         const step = currentMaxRadius / CIRCLE_COUNT;
         
-        // Ring Index
         let ringIndex = Math.floor(radius / step);
         if (ringIndex >= CIRCLE_COUNT) ringIndex = CIRCLE_COUNT - 1;
         if (ringIndex < 0) ringIndex = 0;
 
-        // Octave
-        let octave;
-        if (state.invertOctaves) {
-            octave = LOWEST_OCTAVE + ringIndex;
-        } else {
-            octave = BASE_OCTAVE_HIGH - ringIndex;
-        }
+        let octave = state.invertOctaves ? (LOWEST_OCTAVE + ringIndex) : (BASE_OCTAVE_HIGH - ringIndex);
 
-        // Angle -> Steps
         let normalizedAngle = (angle + Math.PI / 2); 
         if (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
-        
-        // EDO Calculation
         const fraction = normalizedAngle / (Math.PI * 2);
-        let steps = fraction * state.edo;
 
-        // Visual Coordinates Logic
-        let visualX = x;
-        let visualY = y;
+        let freq = 0;
+        let visualX = x, visualY = y;
 
-        // SNAP (NOTES mode)
-        if (state.snapToGrid) {
-            steps = Math.round(steps);
-            if (steps === state.edo) steps = 0;
-            
-            // Recalculate Angle based on snapped steps
-            const snappedAngle = (steps / state.edo) * Math.PI * 2 - Math.PI / 2;
-            
-            // Recalculate Radius based on ring center
-            // (ringIndex + 1) * step is the outer edge, let's stick to the edge like the grid lines
-            const snappedRadius = (ringIndex + 1) * step;
-
-            visualX = centerX + Math.cos(snappedAngle) * snappedRadius;
-            visualY = centerY + Math.sin(snappedAngle) * snappedRadius;
+        if (state.customMode) {
+            // CUSTOM TUNING
+            const data = getCustomRatio(fraction);
+            // Snap visual if needed
+            if (state.snapToGrid) {
+                const sectorAngle = (data.index / state.customSettings.count) * Math.PI * 2 - Math.PI / 2;
+                const snapR = (ringIndex + 1) * step;
+                visualX = centerX + Math.cos(sectorAngle) * snapR;
+                visualY = centerY + Math.sin(sectorAngle) * snapR;
+            }
+            // Freq calculation: Base * 2^octave * Ratio
+            const baseC = 16.35; 
+            const octaveMultiplier = Math.pow(2, octave);
+            freq = baseC * octaveMultiplier * data.ratio;
+        } 
+        else {
+            // EDO TUNING
+            let steps = fraction * state.edo;
+            if (state.snapToGrid) {
+                steps = Math.round(steps);
+                if (steps === state.edo) steps = 0;
+                
+                const snappedAngle = (steps / state.edo) * Math.PI * 2 - Math.PI / 2;
+                const snapR = (ringIndex + 1) * step;
+                visualX = centerX + Math.cos(snappedAngle) * snapR;
+                visualY = centerY + Math.sin(snappedAngle) * snapR;
+            }
+            const totalSteps = (octave * state.edo) + steps;
+            freq = 16.35 * Math.pow(2, totalSteps / state.edo);
         }
 
-        const totalSteps = (octave * state.edo) + steps;
-        
-        // Frequency Formula
-        const baseC = 16.35; 
-        let freq = baseC * Math.pow(2, totalSteps / state.edo);
-
-        return { 
-            radius, 
-            angle, 
-            freq, 
-            steps,
-            visualX, 
-            visualY 
-        };
+        return { radius, angle, freq, visualX, visualY };
     }
 
     function applyBend(freq) {
-        // +/- 2 semitones range
         const bendRangeOctaves = 2 / 12; 
         return freq * Math.pow(2, state.bend * bendRangeOctaves);
     }
@@ -488,33 +448,27 @@
     // --- VOICE CLASS ---
 
     class Voice {
-        constructor(id, data) {
+        constructor(id, data, duration = 0) {
             this.id = id;
             this.baseFreq = data.freq;
-            
-            // Visuals
             this.visualX = data.visualX;
             this.visualY = data.visualY;
+            this.duration = duration; // If > 0, stops automatically (ARP)
 
             this.source = null;
             this.gain = null;
-            this.filter = null;
-            
             this.midiChannel = null;
             this.lastMidiNote = null;
             this.sf2Note = null;
+            this.startTime = audioCtx.currentTime;
 
             this.start();
         }
 
-        getEffectiveFreq() {
-            return applyBend(this.baseFreq);
-        }
-
         start() {
-            const freq = this.getEffectiveFreq();
+            const freq = applyBend(this.baseFreq);
 
-            // MIDI Channel Alloc
+            // MIDI
             if (midiOutput) {
                 const ch = midiChannels.findIndex(c => !c);
                 if (ch !== -1) {
@@ -524,20 +478,16 @@
                 }
             }
 
-            // SF2
-            if (sf2Loaded && sf2Synth) {
-                const midiNote = Math.round(69 + 12 * Math.log2(freq / 440));
-                this.sf2Note = midiNote;
-                sf2Synth.noteOn(0, midiNote, 100);
-                return;
-            }
-
-            // Web Audio
+            // Audio
             this.gain = audioCtx.createGain();
             this.gain.connect(mainGain);
             this.gain.gain.value = 0.2;
 
-            if (customBuffer) {
+            if (sf2Loaded && sf2Synth) {
+                const note = Math.round(69 + 12 * Math.log2(freq / 440));
+                this.sf2Note = note;
+                sf2Synth.noteOn(0, note, 100);
+            } else if (customBuffer) {
                 this.source = audioCtx.createBufferSource();
                 this.source.buffer = customBuffer;
                 this.source.loop = true;
@@ -548,16 +498,19 @@
                 this.source = audioCtx.createOscillator();
                 this.source.type = 'sawtooth';
                 this.source.frequency.value = freq;
+                if(vibratoGain) vibratoGain.connect(this.source.frequency);
                 
-                if (vibratoGain) vibratoGain.connect(this.source.frequency);
-
-                this.filter = audioCtx.createBiquadFilter();
-                this.filter.type = 'lowpass';
-                this.filter.frequency.value = freq * 4;
-
-                this.source.connect(this.filter);
-                this.filter.connect(this.gain);
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = freq * 4;
+                this.source.connect(filter);
+                filter.connect(this.gain);
                 this.source.start(0);
+            }
+
+            // Auto stop for ARP
+            if (this.duration > 0) {
+                setTimeout(() => this.stop(), this.duration * 1000);
             }
         }
 
@@ -569,31 +522,16 @@
         }
 
         refreshPitch() {
-            const freq = this.getEffectiveFreq();
+            const freq = applyBend(this.baseFreq);
             
-            if (this.midiChannel !== null && midiOutput) {
-                this.sendMidi(freq, false);
-            }
-
-            if (sf2Loaded && sf2Synth) {
-                 const midiNote = Math.round(69 + 12 * Math.log2(freq / 440));
-                 if (midiNote !== this.sf2Note) {
-                     sf2Synth.noteOff(0, this.sf2Note);
-                     sf2Synth.noteOn(0, midiNote, 100);
-                     this.sf2Note = midiNote;
-                 }
-                 return;
-            }
-
+            if (this.midiChannel !== null && midiOutput) this.sendMidi(freq, false);
+            
             if (this.source && !sf2Loaded) {
                 const now = audioCtx.currentTime;
-                if (customBuffer) {
-                    let rate = freq / state.baseFreq;
-                    rate = Math.max(0.01, Math.min(20, rate));
-                    this.source.playbackRate.setTargetAtTime(rate, now, 0.02);
+                if(customBuffer) {
+                     this.source.playbackRate.setTargetAtTime(freq / state.baseFreq, now, 0.02);
                 } else {
-                    this.source.frequency.setTargetAtTime(freq, now, 0.02);
-                    if(this.filter) this.filter.frequency.setTargetAtTime(freq * 4, now, 0.02);
+                     this.source.frequency.setTargetAtTime(freq, now, 0.02);
                 }
             }
         }
@@ -602,18 +540,14 @@
             const exactNote = 69 + 12 * Math.log2(freq / 440);
             const noteIndex = Math.round(exactNote);
             const delta = exactNote - noteIndex; 
-            const bendVal = Math.floor(8192 + (delta / 2) * 8192);
+            const bendVal = Math.floor(8192 + (delta/2) * 8192);
             const clamped = Math.max(0, Math.min(16383, bendVal));
-            const lsb = clamped & 0x7F;
-            const msb = (clamped >> 7) & 0x7F;
-
+            
             const ch = this.midiChannel;
-            midiOutput.send([0xE0 + ch, lsb, msb]);
+            midiOutput.send([0xE0 + ch, clamped & 0x7F, (clamped >> 7) & 0x7F]);
 
             if (isStart || noteIndex !== this.lastMidiNote) {
-                if (!isStart && this.lastMidiNote !== null) {
-                    midiOutput.send([0x80 + ch, this.lastMidiNote, 0]);
-                }
+                if (!isStart && this.lastMidiNote !== null) midiOutput.send([0x80 + ch, this.lastMidiNote, 0]);
                 midiOutput.send([0x90 + ch, noteIndex, 100]);
                 this.lastMidiNote = noteIndex;
             }
@@ -622,103 +556,141 @@
         stop() {
             if (this.midiChannel !== null && midiOutput) {
                 midiOutput.send([0x80 + this.midiChannel, this.lastMidiNote, 0]);
-                midiOutput.send([0xE0 + this.midiChannel, 0x00, 0x40]); 
+                midiOutput.send([0xE0 + this.midiChannel, 0, 64]);
                 midiChannels[this.midiChannel] = false;
             }
-
-            if (sf2Loaded && sf2Synth && this.sf2Note) {
-                sf2Synth.noteOff(0, this.sf2Note);
-            }
-
+            if (sf2Loaded && sf2Synth && this.sf2Note) sf2Synth.noteOff(0, this.sf2Note);
+            
             if (this.source) {
-                if (vibratoGain && !customBuffer) {
-                    try { vibratoGain.disconnect(this.source.frequency); } catch(e){}
-                }
+                try { if(vibratoGain && !customBuffer) vibratoGain.disconnect(this.source.frequency); } catch(e){}
                 const now = audioCtx.currentTime;
-                if(this.gain) this.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                this.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 this.source.stop(now + 0.15);
+                setTimeout(() => { this.source?.disconnect(); this.gain?.disconnect(); }, 200);
+            }
+        }
+    }
+
+    // --- ARP SCHEDULER ---
+
+    function arpScheduler() {
+        if (!state.arp || arpNotes.length === 0) return;
+        
+        // Sort notes low to high
+        arpNotes.sort((a,b) => a.freq - b.freq);
+
+        const currentTime = audioCtx.currentTime;
+        const noteDuration = 60 / state.tempo;
+        
+        // Schedule ahead
+        while (nextNoteTime < currentTime + 0.1) {
+            if (arpIndex >= arpNotes.length) arpIndex = 0;
+            const noteData = arpNotes[arpIndex];
+            
+            // Create a temporary voice for ARP
+            const arpVoice = new Voice(-Date.now(), noteData, noteDuration * 0.9);
+            
+            // Schedule visual flash synchronized with audio
+            const timeUntilPlay = nextNoteTime - currentTime;
+            if (timeUntilPlay >= 0) {
+                const playingId = noteData.id;
                 setTimeout(() => {
-                    this.source?.disconnect();
-                    this.gain?.disconnect();
-                    this.filter?.disconnect();
-                }, 200);
+                    currentArpId = playingId;
+                }, timeUntilPlay * 1000);
+                
+                // Stop flashing before next note
+                setTimeout(() => {
+                    if (currentArpId === playingId) currentArpId = null;
+                }, (timeUntilPlay + noteDuration * 0.8) * 1000);
             }
+            
+            nextNoteTime += noteDuration;
+            arpIndex++;
         }
     }
 
-    function updateAllVoicesPitch() {
-        activeVoices.forEach(v => v.refreshPitch());
-    }
-
-    function sendMidiPitchBendGlobal() {
-        // MPE handles pitch bend per channel
-    }
-
-    function sendMidiModWheel() {
-        if (!midiOutput) return;
-        const val7bit = Math.floor(state.mod * 127);
-        for(let i=0; i<16; i++) {
-            if (midiChannels[i]) {
-                midiOutput.send([0xB0 + i, 1, val7bit]);
-            }
-        }
-    }
-
-
-    // --- VISUAL LOOP ---
+    // --- INPUT HANDLING ---
 
     function initCanvas() {
         canvas = document.getElementById('synthCanvas');
         ctx = canvas.getContext('2d');
         const container = document.getElementById('canvas-container');
 
-        // ResizeObserver korjaa kursorin "offset" ongelman
-        // Varmistaa että canvasin sisäinen resoluutio on 1:1 ruudun kanssa
         const observer = new ResizeObserver(entries => {
             for (let entry of entries) {
-                const width = Math.floor(entry.contentRect.width);
-                const height = Math.floor(entry.contentRect.height);
-                canvas.width = width;
-                canvas.height = height;
+                canvas.width = Math.floor(entry.contentRect.width);
+                canvas.height = Math.floor(entry.contentRect.height);
                 resize();
             }
         });
         observer.observe(container);
-        
-        // Initial resize
         resize();
 
-        // INPUT HANDLERS
+        // Handlers
         const start = (id, x, y) => {
             if(!audioCtx) return;
-            // Haetaan koordinaatit varmasti oikein suhteessa canvasin nykyiseen sijaintiin
             const rect = canvas.getBoundingClientRect();
-            const relX = x - rect.left;
-            const relY = y - rect.top;
+            const data = calculateParams(x - rect.left, y - rect.top);
+            if (data.radius > baseRadius * state.zoom * 1.1) return;
 
-            const data = calculateParams(relX, relY);
-            const limit = baseRadius * state.zoom * 1.1;
-            if (data.radius > limit) return;
-            activeVoices.set(id, new Voice(id, data));
+            if (state.arp) {
+                // Add to ARP list
+                arpNotes.push({ ...data, id: id });
+                // Reset timer if starting fresh
+                if (arpNotes.length === 1) nextNoteTime = audioCtx.currentTime;
+            } else {
+                // Standard Play
+                activeVoices.set(id, new Voice(id, data));
+            }
         };
+
         const move = (id, x, y) => {
-            if (activeVoices.has(id)) {
-                const rect = canvas.getBoundingClientRect();
-                const relX = x - rect.left;
-                const relY = y - rect.top;
-
-                const data = calculateParams(relX, relY);
-                activeVoices.get(id).update(data);
+            const rect = canvas.getBoundingClientRect();
+            const data = calculateParams(x - rect.left, y - rect.top);
+            
+            if (state.arp) {
+                // Update only if ID matches (don't update latched notes)
+                const idx = arpNotes.findIndex(n => n.id === id);
+                if (idx !== -1) arpNotes[idx] = { ...data, id: id };
+            } else {
+                if (activeVoices.has(id)) activeVoices.get(id).update(data);
             }
         };
+
         const end = (id) => {
-            if (activeVoices.has(id)) {
-                activeVoices.get(id).stop();
-                activeVoices.delete(id);
+            if (state.arp) {
+                if (!state.hold) {
+                    // Standard ARP behavior: remove on lift
+                    arpNotes = arpNotes.filter(n => n.id !== id);
+                } else {
+                    // ARP + HOLD: Latch the note!
+                    // Change ID so mouse movement doesn't affect it, and start() doesn't overwrite it
+                    const note = arpNotes.find(n => n.id === id);
+                    if (note) {
+                        note.id = 'latched_' + Date.now() + Math.random();
+                    }
+                }
+            } else {
+                if (state.hold) {
+                    // Standard HOLD: Latch the drone!
+                    const v = activeVoices.get(id);
+                    if(v) {
+                         // Switch ID so we can click again with same mouse/touch ID
+                         const newId = 'held_' + Date.now() + Math.random();
+                         activeVoices.delete(id);
+                         activeVoices.set(newId, v);
+                         v.id = newId;
+                    }
+                } else {
+                    if (activeVoices.has(id)) {
+                        activeVoices.get(id).stop();
+                        activeVoices.delete(id);
+                    }
+                }
             }
         };
 
-        // Event Listeners
+        // Events
         canvas.addEventListener('mousedown', e => start('m', e.clientX, e.clientY));
         window.addEventListener('mousemove', e => move('m', e.clientX, e.clientY));
         window.addEventListener('mouseup', () => end('m'));
@@ -746,120 +718,177 @@
     }
 
     function resize() {
-        const container = document.getElementById('canvas-container');
-        width = canvas.width;
-        height = canvas.height;
-        centerX = width/2;
-        centerY = height/2;
+        width = canvas.width; height = canvas.height;
+        centerX = width/2; centerY = height/2;
         baseRadius = Math.min(width, height) / 2 * 0.95;
     }
 
+    // --- ANIMATION ---
+
     function animate() {
+        arpScheduler();
+
         ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
         ctx.fillRect(0, 0, width, height);
 
         const currentMaxR = baseRadius * state.zoom;
         const step = currentMaxR / CIRCLE_COUNT;
 
-        // Gradient Background
+        // Background
         const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, currentMaxR);
-        grad.addColorStop(0, '#111');
-        grad.addColorStop(1, '#000');
-        ctx.fillStyle = grad;
-        ctx.beginPath();
-        ctx.arc(centerX, centerY, currentMaxR, 0, Math.PI*2);
-        ctx.fill();
+        grad.addColorStop(0, '#111'); grad.addColorStop(1, '#000');
+        ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(centerX, centerY, currentMaxR, 0, Math.PI*2); ctx.fill();
 
-        // SECTOR LINES (Based on EDO)
-        ctx.strokeStyle = '#222';
-        ctx.lineWidth = 1;
-        for (let i = 0; i < state.edo; i++) {
-            const angle = (i / state.edo) * Math.PI * 2 - Math.PI / 2;
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
+        // Grid Lines
+        ctx.strokeStyle = '#222'; ctx.lineWidth = 1;
+        const sectorCount = state.customMode ? state.customSettings.count : state.edo;
+        
+        for (let i = 0; i < sectorCount; i++) {
+            let angle;
+            if (state.customMode) {
+                // Approximate visual division for custom (even slices)
+                angle = (i / sectorCount) * Math.PI * 2 - Math.PI / 2;
+            } else {
+                angle = (i / state.edo) * Math.PI * 2 - Math.PI / 2;
+            }
+            
+            ctx.beginPath(); ctx.moveTo(centerX, centerY);
             ctx.lineTo(centerX + Math.cos(angle)*currentMaxR, centerY + Math.sin(angle)*currentMaxR);
             ctx.stroke();
 
-            // Labels (Show note names only if EDO=12 and not playing)
-            if (activeVoices.size === 0 && state.edo === 12) {
+            // Labels (Standard 12 only)
+            if (state.edo === 12 && !state.customMode && activeVoices.size === 0 && arpNotes.length === 0) {
                 const labelR = currentMaxR + 20;
-                if (labelR < Math.max(width,height)) {
-                    ctx.fillStyle = '#444';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
+                if(labelR < Math.min(width, height)) {
+                    ctx.fillStyle = '#444'; ctx.font = '12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
                     ctx.fillText(NOTE_NAMES[i], centerX + Math.cos(angle)*labelR, centerY + Math.sin(angle)*labelR);
                 }
             }
         }
 
-        // CIRCLES
+        // Circles
         for (let i = 0; i < CIRCLE_COUNT; i++) {
             const r = (i + 1) * step;
             if (r > Math.max(width, height)*1.5) continue;
-            
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
-            ctx.strokeStyle = '#333';
-            ctx.stroke();
+            ctx.beginPath(); ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+            ctx.strokeStyle = '#333'; ctx.stroke();
 
-            // NOTES DOTS (If active)
+            // Notes Dots
             if (state.snapToGrid) {
                 ctx.fillStyle = '#222';
-                for (let j = 0; j < state.edo; j++) {
-                    const angle = (j / state.edo) * Math.PI * 2 - Math.PI / 2;
-                    const x = centerX + Math.cos(angle) * r;
-                    const y = centerY + Math.sin(angle) * r;
-                    ctx.beginPath();
-                    ctx.arc(x, y, 2, 0, Math.PI*2);
-                    ctx.fill();
+                for (let j = 0; j < sectorCount; j++) {
+                    const angle = (j / sectorCount) * Math.PI * 2 - Math.PI / 2;
+                    ctx.beginPath(); ctx.arc(centerX + Math.cos(angle)*r, centerY + Math.sin(angle)*r, 2, 0, Math.PI*2); ctx.fill();
                 }
             }
-
-            // Octave Labels
-            if ((i===0 || i===CIRCLE_COUNT-1) && r < Math.min(width,height)) {
-                ctx.fillStyle = '#666';
-                ctx.font = '10px monospace';
-                let txt = "";
-                if(i===0) txt = state.invertOctaves ? "LOW" : "HIGH";
-                if(i===CIRCLE_COUNT-1) txt = state.invertOctaves ? "HIGH" : "LOW";
+            // Labels
+            if ((i===0 || i===CIRCLE_COUNT-1) && r < Math.min(width, height)) {
+                ctx.fillStyle = '#666'; ctx.font = '10px monospace';
+                const txt = (i===0) ? (state.invertOctaves?"LOW":"HIGH") : (state.invertOctaves?"HIGH":"LOW");
                 ctx.fillText(txt, centerX + 5, centerY - r + 10);
             }
         }
 
-        // ACTIVE VOICES
+        // Helper to draw a voice circle
+        const drawVoice = (x, y, txt, color, size) => {
+            ctx.beginPath(); ctx.arc(x, y, size || 15, 0, Math.PI*2);
+            ctx.fillStyle = color; ctx.shadowBlur = size || 15; ctx.shadowColor = color; ctx.fill(); ctx.shadowBlur = 0;
+            ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(x, y);
+            ctx.strokeStyle = 'rgba(255,0,85,0.5)'; ctx.stroke();
+            ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.fillText(txt, x + 25, y);
+        };
+
+        // Active Voices
         activeVoices.forEach(v => {
-            // Use visual coordinates (snapped or raw)
-            const vx = v.visualX;
-            const vy = v.visualY;
+            const freq = Math.round(applyBend(v.baseFreq));
+            drawVoice(v.visualX, v.visualY, freq + "Hz", 'var(--accent-active)', 15);
+        });
 
-            ctx.beginPath();
-            ctx.arc(vx, vy, 15, 0, Math.PI*2);
-            ctx.fillStyle = 'var(--accent-active)';
-            ctx.shadowBlur = 15;
-            ctx.shadowColor = 'var(--accent-active)';
-            ctx.fill();
-            ctx.shadowBlur = 0;
-
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY);
-            ctx.lineTo(vx, vy);
-            ctx.strokeStyle = 'rgba(255,0,85,0.5)';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-
-            // Text Info
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 12px Arial';
-            const freq = v.getEffectiveFreq();
-            ctx.fillText(`${Math.round(freq)}Hz`, vx + 20, vy);
+        // ARP notes
+        arpNotes.forEach(n => {
+            const freq = Math.round(applyBend(n.freq));
+            if (n.id === currentArpId) {
+                // Flash bright white and bigger for playing note
+                drawVoice(n.visualX, n.visualY, freq + "Hz", '#ffffff', 20);
+            } else {
+                // Dimmer green for queued notes
+                drawVoice(n.visualX, n.visualY, freq + "Hz", '#00aa00', 12);
+            }
         });
 
         requestAnimationFrame(animate);
     }
 
-    // --- UI EVENT LISTENERS ---
+    // --- CUSTOM UI LOGIC ---
 
+    const modal = document.getElementById('customModal');
+    const ratioContainer = document.getElementById('ratioContainer');
+
+    function openCustomModal() {
+        document.getElementById('customNoteCount').value = state.customSettings.count;
+        generateRatioInputs();
+        modal.style.display = 'flex';
+    }
+
+    function generateRatioInputs() {
+        ratioContainer.innerHTML = '';
+        const count = parseInt(document.getElementById('customNoteCount').value);
+        for(let i=0; i<count; i++) {
+            const div = document.createElement('div');
+            div.className = 'ratio-row';
+            const existing = state.customSettings.ratios[i];
+            // Default to EDO if new
+            const val = existing || Math.pow(2, i/count);
+            div.innerHTML = `<span>Ratio ${i+1}:</span><input type="number" step="0.0001" value="${val.toFixed(4)}" class="ratio-input">`;
+            ratioContainer.appendChild(div);
+        }
+    }
+
+    document.getElementById('customNoteCount').addEventListener('change', generateRatioInputs);
+    document.getElementById('closeCustomBtn').addEventListener('click', () => {
+        // Update state from inputs
+        const inputs = document.querySelectorAll('.ratio-input');
+        state.customSettings.count = inputs.length;
+        state.customSettings.ratios = Array.from(inputs).map(inp => parseFloat(inp.value));
+        modal.style.display = 'none';
+    });
+    
+    document.getElementById('customEditBtn').addEventListener('click', openCustomModal);
+    
+    document.getElementById('customToggleBtn').addEventListener('click', e => {
+        state.customMode = !state.customMode;
+        e.target.innerText = state.customMode ? "ON" : "OFF";
+        e.target.classList.toggle('active', state.customMode);
+    });
+
+    // Save/Load
+    document.getElementById('saveCustomBtn').addEventListener('click', () => {
+        const data = JSON.stringify(state.customSettings, null, 2);
+        const blob = new Blob([data], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href = url; a.download = 'custom_scale.json';
+        a.click(); URL.revokeObjectURL(url);
+    });
+    document.getElementById('loadCustomBtn').addEventListener('click', () => document.getElementById('loadCustomFile').click());
+    document.getElementById('loadCustomFile').addEventListener('change', e => {
+        const f = e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+            try {
+                const s = JSON.parse(ev.target.result);
+                if(s.count && s.ratios) {
+                    state.customSettings = s;
+                    generateRatioInputs(); // Refresh UI if open
+                    document.getElementById('customNoteCount').value = s.count;
+                }
+            } catch(e) { alert("Invalid JSON"); }
+        };
+        r.readAsText(f);
+    });
+
+    // --- OTHER UI HANDLERS ---
+    
     document.getElementById('startBtn').addEventListener('click', async () => {
         document.getElementById('start-overlay').style.display = 'none';
         await initAudio();
@@ -868,65 +897,142 @@
         animate();
     });
 
-    document.getElementById('zoomSlider').addEventListener('input', e => {
-        state.zoom = parseFloat(e.target.value);
-        resize(); // Force recalc for calculateParams limit check
-    });
+    // ARP & HOLD Logic
+    const toggleArp = () => {
+        state.arp = !state.arp;
+        document.getElementById('arpBtn').classList.toggle('active', state.arp);
+        
+        if (state.arp) {
+            // Transition: If HOLD is ON and we have drones, transfer them to ARP
+            if (state.hold && activeVoices.size > 0) {
+                activeVoices.forEach((v, key) => {
+                    arpNotes.push({ 
+                        freq: v.baseFreq, 
+                        visualX: v.visualX, 
+                        visualY: v.visualY,
+                        id: 'transferred_' + Math.random() // Unique ID to keep it
+                    });
+                    v.stop();
+                });
+                activeVoices.clear();
+                // Reset ARP timer
+                nextNoteTime = audioCtx.currentTime;
+            }
+        } else {
+            // ARP Off: Clear notes
+            arpNotes = [];
+            currentArpId = null;
+        }
+    };
+
+    const toggleHold = () => {
+        state.hold = !state.hold;
+        document.getElementById('holdBtn').classList.toggle('active', state.hold);
+        if (!state.hold) {
+            // Panic Mode: Kill all held/latched notes
+            
+            // 1. Kill Standard Drones
+            activeVoices.forEach(v => v.stop());
+            activeVoices.clear();
+            
+            // 2. Kill ARP latched notes
+            if (state.arp) {
+                arpNotes = [];
+                currentArpId = null;
+            }
+        }
+    };
+
+    document.getElementById('arpBtn').addEventListener('click', toggleArp);
+    document.getElementById('holdBtn').addEventListener('click', toggleHold);
     
-    document.getElementById('invertBtn').addEventListener('click', e => {
-        state.invertOctaves = !state.invertOctaves;
-        e.target.classList.toggle('active', state.invertOctaves);
+    // Tap Tempo
+    document.getElementById('tapBtn').addEventListener('click', () => {
+        const now = Date.now();
+        if(tapTimes.length > 0 && now - tapTimes[tapTimes.length-1] > 2000) tapTimes = [];
+        tapTimes.push(now);
+        if(tapTimes.length > 4) tapTimes.shift();
+        if(tapTimes.length > 1) {
+            let sum = 0;
+            for(let i=1; i<tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i-1]);
+            const avg = sum / (tapTimes.length - 1);
+            const bpm = Math.round(60000 / avg);
+            state.tempo = bpm;
+            document.getElementById('tempoInput').value = bpm;
+        }
+    });
+    document.getElementById('tempoInput').addEventListener('change', e => state.tempo = parseInt(e.target.value));
+
+    // Keyboard Shortcuts
+    window.addEventListener('keydown', e => {
+        if (e.key.toLowerCase() === 'h') toggleHold();
+        if (e.key.toLowerCase() === 'r') toggleArp();
     });
 
-    notesBtn.addEventListener('click', () => {
-        state.snapToGrid = !state.snapToGrid;
-        notesBtn.classList.toggle('active', state.snapToGrid);
-    });
-
-    edoInput.addEventListener('change', e => {
-        let val = parseInt(e.target.value);
-        if(val < 1) val = 1;
-        if(val > 96) val = 96;
-        state.edo = val;
-    });
-
+    // Standard Controls
+    document.getElementById('zoomSlider').addEventListener('input', e => { state.zoom = parseFloat(e.target.value); resize(); });
+    document.getElementById('invertBtn').addEventListener('click', e => { state.invertOctaves = !state.invertOctaves; e.target.classList.toggle('active'); });
+    document.getElementById('notesBtn').addEventListener('click', e => { state.snapToGrid = !state.snapToGrid; e.target.classList.toggle('active'); });
+    document.getElementById('edoInput').addEventListener('change', e => { state.edo = parseInt(e.target.value) || 12; });
     document.getElementById('baseFreqInput').addEventListener('input', e => state.baseFreq = parseFloat(e.target.value) || 261.63);
-    document.getElementById('midiSelect').addEventListener('change', e => {
-        if (!midiAccess) return;
-        midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null;
-    });
 
-    // File inputs
-    document.getElementById('sampleInput').addEventListener('change', function(e) {
-        const f = e.target.files[0];
-        if(!f) return;
-        sf2Loaded = false;
-        const r = new FileReader();
-        r.onload = ev => {
-            if(!audioCtx) audioCtx = new AudioContext();
-            audioCtx.decodeAudioData(ev.target.result, b => {
-                customBuffer = b;
-                statusText.innerText = "Sample ladattu";
-            });
-        };
-        r.readAsArrayBuffer(f);
-    });
+    // Wheels logic
+    function initWheels() {
+        const bendEl = document.getElementById('bendWheel');
+        const modEl = document.getElementById('modWheel');
+        const getVal = (e, el) => { const r = el.getBoundingClientRect(); return Math.max(0, Math.min(1, 1 - (e.clientY - r.top)/r.height)); };
+        
+        let bending=false;
+        bendEl.addEventListener('mousedown',e=>{bending=true;});
+        window.addEventListener('mousemove',e=>{if(bending){
+            const val = getVal(e, bendEl);
+            state.bend = (val - 0.5) * 2;
+            bendEl.querySelector('.wheel-mark').style.top = (1-val)*100 + "%";
+            activeVoices.forEach(v => v.refreshPitch());
+            sendGlobalPitchBend();
+        }});
+        window.addEventListener('mouseup',e=>{if(bending){
+            bending=false; state.bend=0;
+            const m=bendEl.querySelector('.wheel-mark'); m.style.transition='top 0.2s'; m.style.top='50%'; setTimeout(()=>m.style.transition='',200);
+            activeVoices.forEach(v => v.refreshPitch());
+            sendGlobalPitchBend();
+        }});
 
-    document.getElementById('sf2Input').addEventListener('change', function(e) {
-        const f = e.target.files[0];
-        if(!f) return;
-        const r = new FileReader();
-        r.onload = ev => {
-            if(!audioCtx) audioCtx = new AudioContext();
-            try {
-                sf2Synth = new window.SpessaSynthLib.Synthesizer(audioCtx.destination, ev.target.result);
-                sf2Loaded = true;
-                statusText.innerText = "SF2 ladattu";
-            } catch(err) { console.error(err); }
-        };
-        r.readAsArrayBuffer(f);
-    });
+        let modding=false;
+        modEl.addEventListener('mousedown',e=>{modding=true;});
+        window.addEventListener('mousemove',e=>{if(modding){
+            const val = getVal(e, modEl);
+            state.mod = val;
+            modEl.querySelector('.wheel-mark').style.top = (1-val)*100 + "%";
+            if(vibratoGain) vibratoGain.gain.setTargetAtTime(val*50, audioCtx.currentTime, 0.05);
+            sendGlobalMod();
+        }});
+        window.addEventListener('mouseup',e=>{modding=false;});
+    }
 
+    function sendGlobalPitchBend() { /* Handled per voice in MPE/Poly mode */ }
+    function sendGlobalMod() {
+        if(!midiOutput) return;
+        const val = Math.floor(state.mod * 127);
+        for(let i=0; i<16; i++) if(midiChannels[i]) midiOutput.send([0xB0+i, 1, val]);
+    }
+
+    // Files
+    document.getElementById('sampleInput').addEventListener('change', e => {
+        const f = e.target.files[0]; if(!f)return; sf2Loaded=false;
+        const r=new FileReader(); r.onload=ev=>{
+            if(!audioCtx) audioCtx=new AudioContext();
+            audioCtx.decodeAudioData(ev.target.result, b=>{customBuffer=b; statusText.innerText="Sample OK";});
+        }; r.readAsArrayBuffer(f);
+    });
+    document.getElementById('sf2Input').addEventListener('change', e => {
+        const f = e.target.files[0]; if(!f)return;
+        const r=new FileReader(); r.onload=ev=>{
+            if(!audioCtx) audioCtx=new AudioContext();
+            try { sf2Synth=new window.SpessaSynthLib.Synthesizer(audioCtx.destination, ev.target.result); sf2Loaded=true; statusText.innerText="SF2 OK"; }
+            catch(e){console.error(e);}
+        }; r.readAsArrayBuffer(f);
+    });
 </script>
 </body>
 </html>
