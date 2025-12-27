@@ -278,8 +278,13 @@
     </div>
 
     <div class="control-group">
-        <label>Files</label>
+        <label>Files / Source</label>
         <div style="display:flex; flex-direction: column; gap:2px;">
+             <!-- NEW SOUND SOURCE SELECTOR -->
+             <select id="builtInSoundSelect" style="width: 90px; font-size: 0.6rem;">
+                 <option value="synth">Synth (Saw)</option>
+             </select>
+
              <input type="file" id="sampleInput" accept="audio/*" style="width: 85px; font-size:0.6rem;" title="Load Sample">
              <input type="file" id="sf2Input" accept=".sf2" style="width: 85px; font-size:0.6rem;" title="Load SF2">
         </div>
@@ -348,7 +353,7 @@
     let audioCtx;
     let mainGain;
     let customBuffer = null;
-    let sound1Buffer = null; // Buffer for sound1.wav
+    let loadedSounds = {}; // Stores sound1...sound4 buffers
     let sf2Synth = null;
     let sf2Loaded = false;
     let vibratoLfo, vibratoGain;
@@ -428,7 +433,7 @@
     
     // Funktio, joka polttaa ristiinhäivytyksen loopin loppuun
     function applyCrossfadeToBuffer(originalBuffer, loopStart, loopEnd, crossfadeDuration) {
-        // Luodaan kopio bufferista, jotta emme muokkaa alkuperäistä dataa väärin (vaikka sound1 tapauksessa tämä on ainoa käyttö)
+        // Luodaan kopio bufferista, jotta emme muokkaa alkuperäistä dataa väärin
         const numberOfChannels = originalBuffer.numberOfChannels;
         const sampleRate = originalBuffer.sampleRate;
         const newBuffer = audioCtx.createBuffer(numberOfChannels, originalBuffer.length, sampleRate);
@@ -483,20 +488,33 @@
             vibratoLfo.connect(vibratoGain);
             vibratoLfo.start();
 
-            // Yritetään ladata sound1.wav
-            try {
-                const response = await fetch('sound1.wav');
-                if (response.ok) {
-                    const arrayBuffer = await response.arrayBuffer();
-                    const decoded = await audioCtx.decodeAudioData(arrayBuffer);
-                    // Käsitellään ristiinhäivytys: 0.4s -> 1.4s, 50ms (0.05s) häivytyksellä
-                    sound1Buffer = applyCrossfadeToBuffer(decoded, 0.4, 1.4, 0.05);
-                    console.log("sound1.wav loaded and crossfaded.");
-                    statusText.innerText = "Sound1 Ready";
+            // Yritetään ladata sound1.wav ... sound4.wav
+            const soundSelect = document.getElementById('builtInSoundSelect');
+            let loadedCount = 0;
+
+            for (let i = 1; i <= 4; i++) {
+                try {
+                    const response = await fetch(`sound${i}.wav`);
+                    if (response.ok) {
+                        const arrayBuffer = await response.arrayBuffer();
+                        const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+                        // Käsitellään ristiinhäivytys: 0.4s -> 1.4s, 50ms (0.05s) häivytyksellä
+                        const processed = applyCrossfadeToBuffer(decoded, 0.4, 1.4, 0.05);
+                        loadedSounds[`sound${i}`] = processed;
+                        
+                        // Lisätään valikkoon
+                        const option = document.createElement('option');
+                        option.value = `sound${i}`;
+                        option.text = `Sound ${i}`;
+                        soundSelect.appendChild(option);
+                        
+                        loadedCount++;
+                    }
+                } catch (e) {
+                    // Ei tehdä mitään, tiedostoa ei löytynyt
                 }
-            } catch (e) {
-                console.log("sound1.wav not found or failed to load, using default synth.");
             }
+            if (loadedCount > 0) statusText.innerText = `${loadedCount} Sounds Ready`;
         }
         if (audioCtx.state === 'suspended') await audioCtx.resume();
         initMidi();
@@ -745,44 +763,53 @@
             this.gain.gain.value = 0.2;
 
             if (sf2Loaded && sf2Synth) {
+                // 1. SF2
                 const note = Math.round(69 + 12 * Math.log2(freq / 440));
                 this.sf2Note = note;
                 sf2Synth.noteOn(0, note, 100);
             } 
             else if (customBuffer) {
-                // Käyttäjän lataama sample
+                // 2. Custom User Sample
                 this.source = audioCtx.createBufferSource();
                 this.source.buffer = customBuffer;
                 this.source.loop = true;
+                // Apply loop points because we processed the buffer with crossfade data
+                this.source.loopStart = 0.4;
+                this.source.loopEnd = 1.4;
                 this.source.playbackRate.value = freq / state.baseFreq;
                 this.source.connect(this.gain);
                 this.source.start(0);
             }
-            else if (sound1Buffer) {
-                // Sound1.wav käytössä (automaattisesti ladattu)
-                this.source = audioCtx.createBufferSource();
-                this.source.buffer = sound1Buffer;
-                this.source.loop = true;
-                this.source.loopStart = 0.4;
-                this.source.loopEnd = 1.4;
-                // Base Hz sound1.wav:lle on 261.63
-                this.source.playbackRate.value = freq / 261.63;
-                this.source.connect(this.gain);
-                this.source.start(0);
-            } 
             else {
-                // Oletus synteettinen ääni
-                this.source = audioCtx.createOscillator();
-                this.source.type = 'sawtooth';
-                this.source.frequency.value = freq;
-                if(vibratoGain) vibratoGain.connect(this.source.frequency);
+                // 3. Built-in Sounds OR Synth
+                const selectedSound = document.getElementById('builtInSoundSelect').value;
                 
-                const filter = audioCtx.createBiquadFilter();
-                filter.type = 'lowpass';
-                filter.frequency.value = freq * 4;
-                this.source.connect(filter);
-                filter.connect(this.gain);
-                this.source.start(0);
+                if (selectedSound !== 'synth' && loadedSounds[selectedSound]) {
+                    // Play loaded built-in sound
+                    this.source = audioCtx.createBufferSource();
+                    this.source.buffer = loadedSounds[selectedSound];
+                    this.source.loop = true;
+                    this.source.loopStart = 0.4;
+                    this.source.loopEnd = 1.4;
+                    // Base Hz for these samples is 261.63
+                    this.source.playbackRate.value = freq / 261.63;
+                    this.source.connect(this.gain);
+                    this.source.start(0);
+                } 
+                else {
+                    // Default Synth
+                    this.source = audioCtx.createOscillator();
+                    this.source.type = 'sawtooth';
+                    this.source.frequency.value = freq;
+                    if(vibratoGain) vibratoGain.connect(this.source.frequency);
+                    
+                    const filter = audioCtx.createBiquadFilter();
+                    filter.type = 'lowpass';
+                    filter.frequency.value = freq * 4;
+                    this.source.connect(filter);
+                    filter.connect(this.gain);
+                    this.source.start(0);
+                }
             }
 
             // Auto stop for ARP
@@ -805,12 +832,18 @@
             
             if (this.source && !sf2Loaded) {
                 const now = audioCtx.currentTime;
+                
                 if (customBuffer) {
                      this.source.playbackRate.setTargetAtTime(freq / state.baseFreq, now, 0.02);
-                } else if (sound1Buffer) {
-                     this.source.playbackRate.setTargetAtTime(freq / 261.63, now, 0.02);
                 } else {
-                     this.source.frequency.setTargetAtTime(freq, now, 0.02);
+                    // Check if using built-in sound
+                    const selectedSound = document.getElementById('builtInSoundSelect').value;
+                    if (selectedSound !== 'synth' && loadedSounds[selectedSound]) {
+                         this.source.playbackRate.setTargetAtTime(freq / 261.63, now, 0.02);
+                    } else {
+                         // Oscillator
+                         this.source.frequency.setTargetAtTime(freq, now, 0.02);
+                    }
                 }
             }
         }
@@ -841,7 +874,13 @@
             if (sf2Loaded && sf2Synth && this.sf2Note) sf2Synth.noteOff(0, this.sf2Note);
             
             if (this.source) {
-                try { if(vibratoGain && !customBuffer && !sound1Buffer) vibratoGain.disconnect(this.source.frequency); } catch(e){}
+                try { 
+                    // Only disconnect vibrato if oscillator
+                    const selectedSound = document.getElementById('builtInSoundSelect').value;
+                    const isSample = customBuffer || (selectedSound !== 'synth' && loadedSounds[selectedSound]);
+                    if(vibratoGain && !isSample) vibratoGain.disconnect(this.source.frequency); 
+                } catch(e){}
+                
                 const now = audioCtx.currentTime;
                 this.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
                 this.source.stop(now + 0.15);
@@ -1355,7 +1394,11 @@
         const f = e.target.files[0]; if(!f)return; sf2Loaded=false;
         const r=new FileReader(); r.onload=ev=>{
             if(!audioCtx) audioCtx=new AudioContext();
-            audioCtx.decodeAudioData(ev.target.result, b=>{customBuffer=b; statusText.innerText="Sample OK";});
+            audioCtx.decodeAudioData(ev.target.result, b=>{
+                // Apply same crossfade to user loaded buffer
+                customBuffer=applyCrossfadeToBuffer(b, 0.4, 1.4, 0.05); 
+                statusText.innerText="Sample OK";
+            });
         }; r.readAsArrayBuffer(f);
     });
     document.getElementById('sf2Input').addEventListener('change', e => {
