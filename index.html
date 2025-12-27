@@ -297,7 +297,7 @@
     </div>
 </div>
 
-<script>
+<script type="module">
     /**
      * CONFIG & STATE
      */
@@ -306,6 +306,10 @@
     const LOWEST_OCTAVE = -1;
     const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
     const NOTE_NAMES_31 = ["C", "^C", "C#", "^C#", "vD", "D", "^D", "D#", "Eb", "vE", "E", "^E", "vF", "F", "vF#", "F#", "^F#", "vG", "G", "^G", "G#", "^G#", "vA", "A", "^A", "A#", "Bb", "vB", "B", "B#", "Cb"];
+    
+    // COLORS (Hardcoded for Canvas)
+    const COLOR_ACCENT = '#00f3ff';
+    const COLOR_ACCENT_ACTIVE = '#ff0055';
     
     let state = {
         zoom: 1.0,
@@ -376,19 +380,18 @@
     const scaleRootInput = document.getElementById('scaleRootInput');
 
     function populateScaleList() {
-        // Varmista että scaleList.js on ladattu
-        if (typeof window.scalesList === 'undefined') {
+        if (typeof scalesList === 'undefined') {
             console.warn("scalesList ei ole ladattu.");
             return;
         }
 
         // Tyhjennä valikko
-        scaleSelect.innerHTML = '<option value="">- Ei asteikkoa -</option>';
+        scaleSelect.innerHTML = '<option value="">- Valitse -</option>';
 
         // Suodata ja lisää
         const term = state.scaleFilter.toLowerCase();
         
-        window.scalesList.forEach((scale, index) => {
+        scalesList.forEach((scale, index) => {
             // Suodata EDO:n mukaan
             if (scale.edo !== state.edo) return;
             
@@ -400,9 +403,6 @@
             opt.text = scale.name;
             scaleSelect.appendChild(opt);
         });
-        
-        // Palauta valinta jos nykyinen valittu asteikko on edelleen validi
-        // Tässä yksinkertaistettu: nollataan jos vaihdetaan EDOa
     }
 
     scaleSearchInput.addEventListener('input', (e) => {
@@ -417,7 +417,7 @@
     scaleSelect.addEventListener('change', (e) => {
         const idx = e.target.value;
         if (idx !== "") {
-            state.selectedScale = window.scalesList[idx];
+            state.selectedScale = scalesList[idx];
         } else {
             state.selectedScale = null;
         }
@@ -960,11 +960,15 @@
         const activeScaleIndices = new Set();
         if (state.selectedScale && !state.customMode) {
             let noteIndex = state.scaleRoot;
-            activeScaleIndices.add(noteIndex % state.edo); // Root note (0 step)
+            // Handle negative scaleRoot properly for modulo
+            let safeRoot = (noteIndex % state.edo + state.edo) % state.edo;
+            activeScaleIndices.add(safeRoot); // Root note (0 step)
             
+            let current = noteIndex;
             for (let stepVal of state.selectedScale.steps) {
-                noteIndex += stepVal;
-                activeScaleIndices.add(noteIndex % state.edo);
+                current += stepVal;
+                let safeIndex = (current % state.edo + state.edo) % state.edo;
+                activeScaleIndices.add(safeIndex);
             }
         }
 
@@ -984,8 +988,9 @@
             ctx.lineTo(centerX + Math.cos(angle)*currentMaxR, centerY + Math.sin(angle)*currentMaxR);
             
             // Väritä viiva jos se kuuluu valittuun asteikkoon
+            // Use HARDCODED hex color because Canvas doesn't resolve var()
             if (!state.customMode && state.selectedScale && activeScaleIndices.has(i)) {
-                ctx.strokeStyle = 'var(--accent)'; // Kirkas väri
+                ctx.strokeStyle = COLOR_ACCENT; 
                 ctx.lineWidth = 2;
             } else {
                 ctx.strokeStyle = '#222';
@@ -1051,7 +1056,7 @@
         // Active Voices
         activeVoices.forEach(v => {
             const freq = Math.round(applyBend(v.baseFreq));
-            drawVoice(v.visualX, v.visualY, freq + "Hz", 'var(--accent-active)', 15);
+            drawVoice(v.visualX, v.visualY, freq + "Hz", COLOR_ACCENT_ACTIVE, 15);
         });
 
         // ARP notes
@@ -1283,6 +1288,8 @@
             catch(e){console.error(e);}
         }; r.readAsArrayBuffer(f);
     });
+
+    populateScaleList();
 </script>
 </body>
 </html>
