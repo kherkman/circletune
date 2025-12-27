@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="fi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Polyphonic Orbital Synth + MPE MIDI</title>
+    <style>
+        :root {
+            --bg-color: #050505;
+            --panel-bg: #111;
+            --text-color: #eee;
+            --accent: #00f3ff;
+            --accent-active: #ff0055;
+            --border: #333;
+        }
+
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            touch-action: none;
+        }
+
+        /* Yläpalkki */
+        #controls {
+            background-color: var(--panel-bg);
+            padding: 8px 10px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px rgba(0,0,0,0.8);
+            z-index: 10;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.8rem;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            align-items: center;
+        }
+
+        label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #888;
+        }
+
+        input, select, button {
+            background: #222;
+            color: var(--text-color);
+            border: 1px solid #444;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            padding: 4px;
+        }
+
+        input[type="range"] {
+            -webkit-appearance: none;
+            width: 80px;
+            height: 4px;
+            background: #333;
+            border: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        button {
+            cursor: pointer;
+            font-weight: bold;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+        button:hover { background: #333; box-shadow: 0 0 5px var(--accent); }
+        button.active { background: var(--accent-active); border-color: var(--accent-active); color: #fff; }
+
+        #canvas-container {
+            flex-grow: 1;
+            position: relative;
+            cursor: crosshair;
+            overflow: hidden;
+        }
+
+        canvas { display: block; }
+
+        #start-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            z-index: 100;
+        }
+
+        h1 {
+            font-weight: 300;
+            letter-spacing: 4px;
+            text-shadow: 0 0 10px var(--accent);
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .status {
+            font-size: 0.7rem;
+            color: #ff9900;
+            margin-left: 5px;
+            white-space: nowrap;
+        }
+    </style>
+    <!-- SF2 Library -->
+    <script type="module">
+        import { SpessaSynth } from 'https://esm.sh/spessasynth_lib@1.0.8';
+        window.SpessaSynthLib = SpessaSynth;
+    </script>
+</head>
+<body>
+
+<div id="controls">
+    <div class="control-group">
+        <label>Zoom</label>
+        <input type="range" id="zoomSlider" min="0.5" max="2.5" step="0.1" value="1.0">
+    </div>
+    
+    <div class="control-group">
+        <label>Suunta</label>
+        <button id="invertBtn">Invert ⇄</button>
+    </div>
+
+    <div class="control-group">
+        <label>MIDI Out</label>
+        <select id="midiSelect">
+            <option value="">- Ei MIDIä -</option>
+        </select>
+    </div>
+
+    <div class="control-group">
+        <label>Sample</label>
+        <input type="file" id="sampleInput" accept="audio/*" style="width: 140px;">
+    </div>
+    
+    <div class="control-group">
+        <label>Hz Juuri</label>
+        <input type="number" id="baseFreqInput" value="261.63" step="1" style="width: 50px;">
+    </div>
+
+    <div class="control-group" style="border-left: 1px solid #444; padding-left: 5px;">
+        <label>SoundFont</label>
+        <input type="file" id="sf2Input" accept=".sf2" style="width: 140px;">
+    </div>
+    
+    <div class="status" id="statusText">Odotetaan...</div>
+</div>
+
+<div id="canvas-container">
+    <canvas id="synthCanvas"></canvas>
+    <div id="start-overlay">
+        <h1>ORBITAL MPE SYNTH</h1>
+        <button id="startBtn" style="font-size: 1.2rem; padding: 15px 30px;">KÄYNNISTÄ</button>
+        <p style="margin-top: 20px; font-size: 0.9em; color: #888;">Multi-Channel MIDI Pitch Bend</p>
+    </div>
+</div>
+
+<script>
+    /**
+     * KONFIGURAATIO
+     */
+    const CIRCLE_COUNT = 10;
+    const BASE_OCTAVE_HIGH = 8; 
+    const LOWEST_OCTAVE = -1;
+    const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+    const BEND_RANGE_SEMITONES = 2; // Oletus Pitch Bend Range (Standardi on 2)
+
+    // Audio & State
+    let audioCtx;
+    let mainGain;
+    let customBuffer = null;
+    let sf2Synth = null;
+    let sf2Loaded = false;
+    let baseFreq = 261.63;
+
+    let zoomLevel = 1.0;
+    let invertOctaves = false;
+    
+    // MIDI
+    let midiAccess = null;
+    let midiOutput = null;
+    // MIDI Kanavapooli: 0-15 (kanavat 1-16). false = vapaa, true = varattu
+    const midiChannels = new Array(16).fill(false); 
+
+    // Canvas
+    let canvas, ctx;
+    let width, height, centerX, centerY, baseRadius;
+    const activeVoices = new Map();
+
+    const statusText = document.getElementById('statusText');
+    const invertBtn = document.getElementById('invertBtn');
+    
+    // --- HELPER: CHANNEL MANAGER ---
+    function allocateChannel() {
+        // Etsitään vapaa kanava. 
+        // Vältetään kanavaa 9 (indeksi 9 = Ch 10) joka on usein rummut, 
+        // mutta MPE käytössä usein kaikki käy. Käytetään kaikkia tässä.
+        for (let i = 0; i < 16; i++) {
+            if (!midiChannels[i]) {
+                midiChannels[i] = true;
+                return i;
+            }
+        }
+        return null; // Ei vapaita kanavia
+    }
+
+    function releaseChannel(ch) {
+        if (ch !== null && ch >= 0 && ch < 16) {
+            midiChannels[ch] = false;
+        }
+    }
+
+    // --- HELPER: MIDI MATH ---
+    function calculateMidiData(freq) {
+        // 1. Tarkka MIDI nuotti liukulukuna (esim. 60.5)
+        const exactMidi = 69 + 12 * Math.log2(freq / 440);
+        
+        // 2. Lähin kokonaisluku "pohjanuotiksi"
+        const closestNote = Math.round(exactMidi);
+        
+        // 3. Erotus puolisävelaskelina (-0.5 ... 0.5)
+        const semitoneDelta = exactMidi - closestNote;
+        
+        // 4. Laske Pitch Bend (14-bit: 0 - 16383, keskikohta 8192)
+        // Oletus: Synth bend range on +/- 2 semitones.
+        // 8192 on 0 pitch.
+        // Yksi semitone on 8192 / BEND_RANGE_SEMITONES yksikköä (jos range on 2, niin 4096 per st).
+        const bendAmount = Math.floor(8192 + (semitoneDelta * (8192 / BEND_RANGE_SEMITONES)));
+        
+        // Clamp (varmuuden vuoksi)
+        const clampedBend = Math.max(0, Math.min(16383, bendAmount));
+        
+        const lsb = clampedBend & 0x7F;
+        const msb = (clampedBend >> 7) & 0x7F;
+
+        return {
+            note: closestNote,
+            lsb: lsb,
+            msb: msb
+        };
+    }
+
+    // --- VOICE CLASS ---
+    class Voice {
+        constructor(id, freq, x, y, radius, angle) {
+            this.id = id;
+            this.freq = freq;
+            
+            // Visual
+            this.x = x; 
+            this.y = y;
+            this.radius = radius;
+            this.angle = angle;
+            
+            // Audio Components
+            this.source = null;
+            this.gain = null;
+            this.filter = null;
+            
+            // MIDI / SF2 State
+            this.midiChannel = null;
+            this.lastMidiNote = null;
+            this.sf2Note = null;
+
+            this.start();
+        }
+
+        start() {
+            // --- 1. MIDI OUT (Tarkka Pitch Shift) ---
+            if (midiOutput) {
+                this.midiChannel = allocateChannel();
+                
+                if (this.midiChannel !== null) {
+                    const midiData = calculateMidiData(this.freq);
+                    this.lastMidiNote = midiData.note;
+
+                    const chByte = 0xB0 + this.midiChannel; // CC message (ei tarvita, mutta...)
+                    // Lähetä ensin Pitch Bend (0xE0)
+                    midiOutput.send([0xE0 + this.midiChannel, midiData.lsb, midiData.msb]);
+                    // Sitten Note On (0x90)
+                    midiOutput.send([0x90 + this.midiChannel, midiData.note, 100]);
+                }
+            }
+
+            // --- 2. SF2 ---
+            if (sf2Loaded && sf2Synth) {
+                // SF2 ei tue helposti per-nuotti pitch bendiä SpessaSynth-kirjaston
+                // yksinkertaisimman rajapinnan kautta ilman kanavakikkailua.
+                // Soitetaan kromaattinen nuotti tässä tilassa.
+                const midiData = calculateMidiData(this.freq);
+                this.sf2Note = midiData.note;
+                sf2Synth.noteOn(0, this.sf2Note, 100);
+                return;
+            }
+
+            // --- 3. WEB AUDIO (Oskillaattori/Sample) ---
+            this.gain = audioCtx.createGain();
+            this.gain.connect(mainGain);
+            this.gain.gain.value = 0.2;
+
+            if (customBuffer) {
+                this.source = audioCtx.createBufferSource();
+                this.source.buffer = customBuffer;
+                this.source.loop = true;
+                this.source.playbackRate.value = this.freq / baseFreq;
+                this.source.connect(this.gain);
+                this.source.start(0);
+            } else {
+                this.source = audioCtx.createOscillator();
+                this.source.type = 'sawtooth';
+                this.source.frequency.value = this.freq;
+                
+                this.filter = audioCtx.createBiquadFilter();
+                this.filter.type = 'lowpass';
+                this.filter.frequency.value = this.freq * 4;
+
+                this.source.connect(this.filter);
+                this.filter.connect(this.gain);
+                this.source.start(0);
+            }
+        }
+
+        update(newFreq, newX, newY, newRadius, newAngle) {
+            this.freq = newFreq;
+            this.x = newX;
+            this.y = newY;
+            this.radius = newRadius;
+            this.angle = newAngle;
+
+            // --- MIDI PÄIVITYS ---
+            if (midiOutput && this.midiChannel !== null) {
+                const midiData = calculateMidiData(newFreq);
+
+                // Jos "pohjanuotti" on vaihtunut (liu'uttu yli puolisävelaskeleen rajan)
+                if (midiData.note !== this.lastMidiNote) {
+                    // Sammuta vanha
+                    midiOutput.send([0x80 + this.midiChannel, this.lastMidiNote, 0]);
+                    
+                    // Aseta uusi pitch bend
+                    midiOutput.send([0xE0 + this.midiChannel, midiData.lsb, midiData.msb]);
+                    
+                    // Soita uusi
+                    midiOutput.send([0x90 + this.midiChannel, midiData.note, 100]);
+                    
+                    this.lastMidiNote = midiData.note;
+                } else {
+                    // Sama pohjanuotti, päivitä vain Pitch Bend (tarkka taajuus)
+                    midiOutput.send([0xE0 + this.midiChannel, midiData.lsb, midiData.msb]);
+                }
+            }
+
+            // --- SF2 PÄIVITYS ---
+            if (sf2Loaded && sf2Synth) {
+                const midiData = calculateMidiData(newFreq);
+                if (midiData.note !== this.sf2Note) {
+                    sf2Synth.noteOff(0, this.sf2Note);
+                    sf2Synth.noteOn(0, midiData.note, 100);
+                    this.sf2Note = midiData.note;
+                }
+                return;
+            }
+
+            // --- WEB AUDIO PÄIVITYS ---
+            if (this.source) {
+                const now = audioCtx.currentTime;
+                if (customBuffer) {
+                    let rate = newFreq / baseFreq;
+                    if (rate < 0.01) rate = 0.01;
+                    if (rate > 20) rate = 20;
+                    this.source.playbackRate.setTargetAtTime(rate, now, 0.02);
+                } else {
+                    this.source.frequency.setTargetAtTime(newFreq, now, 0.02);
+                    if (this.filter) this.filter.frequency.setTargetAtTime(newFreq * 4, now, 0.02);
+                }
+            }
+        }
+
+        stop() {
+            // MIDI Stop
+            if (midiOutput && this.midiChannel !== null) {
+                midiOutput.send([0x80 + this.midiChannel, this.lastMidiNote, 0]);
+                // Reset pitch bend
+                midiOutput.send([0xE0 + this.midiChannel, 0x00, 0x40]); // Center (8192)
+                releaseChannel(this.midiChannel);
+                this.midiChannel = null;
+            }
+
+            // SF2 Stop
+            if (sf2Loaded && sf2Synth && this.sf2Note !== null) {
+                sf2Synth.noteOff(0, this.sf2Note);
+            }
+
+            // Web Audio Stop
+            if (this.source) {
+                const now = audioCtx.currentTime;
+                if (this.gain) this.gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+                this.source.stop(now + 0.15);
+                setTimeout(() => {
+                    if(this.source) this.source.disconnect();
+                    if(this.gain) this.gain.disconnect();
+                    if(this.filter) this.filter.disconnect();
+                }, 200);
+            }
+        }
+    }
+
+    // --- LASKENTA ---
+
+    function calculateVoiceParams(x, y) {
+        const dx = x - centerX;
+        const dy = y - centerY;
+        const radius = Math.sqrt(dx*dx + dy*dy);
+        const angle = Math.atan2(dy, dx); 
+        const currentMaxRadius = baseRadius * zoomLevel;
+        
+        const step = currentMaxRadius / CIRCLE_COUNT;
+        let ringIndex = Math.floor(radius / step);
+        if (ringIndex >= CIRCLE_COUNT) ringIndex = CIRCLE_COUNT - 1;
+        if (ringIndex < 0) ringIndex = 0;
+
+        let octave;
+        if (invertOctaves) {
+            octave = LOWEST_OCTAVE + ringIndex;
+        } else {
+            octave = BASE_OCTAVE_HIGH - ringIndex;
+        }
+
+        let normalizedAngle = (angle + Math.PI / 2); 
+        if (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
+        const semitones = (normalizedAngle / (Math.PI * 2)) * 12;
+
+        const totalSemitones = (octave * 12) + semitones;
+        const freq = 16.35 * Math.pow(2, totalSemitones / 12);
+        
+        return { 
+            radius, 
+            angle, 
+            freq, 
+            safeRadius: Math.min(radius, currentMaxRadius) 
+        };
+    }
+
+    // --- ALUSTUS ---
+
+    async function initAudioAndMidi() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            mainGain = audioCtx.createGain();
+            mainGain.gain.value = 0.4;
+            mainGain.connect(audioCtx.destination);
+        }
+        if (audioCtx.state === 'suspended') await audioCtx.resume();
+
+        if (navigator.requestMIDIAccess) {
+            try {
+                midiAccess = await navigator.requestMIDIAccess();
+                populateMidiDropdown();
+                midiAccess.onstatechange = populateMidiDropdown;
+                statusText.innerText = "Audio & MIDI Valmis";
+            } catch (e) {
+                statusText.innerText = "MIDI ei saatavilla";
+            }
+        }
+    }
+
+    function populateMidiDropdown() {
+        const select = document.getElementById('midiSelect');
+        const current = select.value;
+        select.innerHTML = '<option value="">- Ei MIDIä -</option>';
+        if (!midiAccess) return;
+        
+        for (let output of midiAccess.outputs.values()) {
+            const opt = document.createElement('option');
+            opt.value = output.id;
+            opt.text = output.name;
+            select.appendChild(opt);
+        }
+        if(current) select.value = current;
+    }
+
+    document.getElementById('midiSelect').addEventListener('change', (e) => {
+        if (!midiAccess) return;
+        midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null;
+    });
+
+    // --- CANVAS INPUT ---
+
+    function initCanvas() {
+        canvas = document.getElementById('synthCanvas');
+        ctx = canvas.getContext('2d');
+        resize();
+        window.addEventListener('resize', resize);
+
+        const start = (id, x, y) => {
+            if(!audioCtx) return;
+            const coords = getCoords(x, y);
+            const data = calculateVoiceParams(coords.x, coords.y);
+            
+            // Reunaehto: jos zoomattu ulos ja klikataan kauas
+            const limit = baseRadius * zoomLevel * 1.1;
+            if (data.radius > limit) return;
+            
+            activeVoices.set(id, new Voice(id, data.freq, coords.x, coords.y, data.radius, data.angle));
+        };
+
+        const move = (id, x, y) => {
+            if (activeVoices.has(id)) {
+                const coords = getCoords(x, y);
+                const data = calculateVoiceParams(coords.x, coords.y);
+                activeVoices.get(id).update(data.freq, coords.x, coords.y, data.radius, data.angle);
+            }
+        };
+
+        const end = (id) => {
+            if (activeVoices.has(id)) {
+                activeVoices.get(id).stop();
+                activeVoices.delete(id);
+            }
+        };
+
+        // HIIRI
+        canvas.addEventListener('mousedown', e => start('mouse', e.clientX, e.clientY));
+        window.addEventListener('mousemove', e => move('mouse', e.clientX, e.clientY));
+        window.addEventListener('mouseup', () => end('mouse'));
+
+        // KOSKETUS
+        canvas.addEventListener('touchstart', e => {
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                start(t.identifier, t.clientX, t.clientY);
+            }
+        }, {passive:false});
+
+        canvas.addEventListener('touchmove', e => {
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) {
+                const t = e.changedTouches[i];
+                move(t.identifier, t.clientX, t.clientY);
+            }
+        }, {passive:false});
+
+        const touchEnd = e => {
+            e.preventDefault();
+            for(let i=0; i<e.changedTouches.length; i++) end(e.changedTouches[i].identifier);
+        };
+        canvas.addEventListener('touchend', touchEnd);
+        canvas.addEventListener('touchcancel', touchEnd);
+    }
+
+    function getCoords(cx, cy) {
+        const r = canvas.getBoundingClientRect();
+        return { x: cx - r.left, y: cy - r.top };
+    }
+
+    function resize() {
+        const c = document.getElementById('canvas-container');
+        width = c.clientWidth;
+        height = c.clientHeight;
+        canvas.width = width;
+        canvas.height = height;
+        centerX = width/2;
+        centerY = height/2;
+        baseRadius = Math.min(width, height) / 2 * 0.95;
+    }
+
+    // --- UI EVENTIT ---
+    document.getElementById('startBtn').addEventListener('click', async () => {
+        document.getElementById('start-overlay').style.display = 'none';
+        await initAudioAndMidi();
+        initCanvas();
+        animate();
+    });
+
+    document.getElementById('zoomSlider').addEventListener('input', (e) => zoomLevel = parseFloat(e.target.value));
+    document.getElementById('baseFreqInput').addEventListener('input', (e) => baseFreq = parseFloat(e.target.value) || 261.63);
+    invertBtn.addEventListener('click', () => {
+        invertOctaves = !invertOctaves;
+        invertBtn.classList.toggle('active', invertOctaves);
+    });
+
+    // --- ANIMATION ---
+    function animate() {
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
+        ctx.fillRect(0, 0, width, height);
+
+        const currentMaxR = baseRadius * zoomLevel;
+        const step = currentMaxR / CIRCLE_COUNT;
+
+        // Tausta
+        const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, currentMaxR);
+        grad.addColorStop(0, '#111');
+        grad.addColorStop(1, '#000');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, currentMaxR, 0, Math.PI*2);
+        ctx.fill();
+
+        // Nuottiviivat
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 12; i++) {
+            const a = (i / 12) * Math.PI * 2 - Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX + Math.cos(a)*currentMaxR, centerY + Math.sin(a)*currentMaxR);
+            ctx.stroke();
+            
+            if (activeVoices.size === 0) {
+                const labelR = currentMaxR + 20;
+                if (labelR < Math.max(width,height)) {
+                    ctx.fillStyle = '#444';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(NOTES[i], centerX + Math.cos(a)*labelR, centerY + Math.sin(a)*labelR);
+                }
+            }
+        }
+
+        // Renkaat
+        for (let i = 0; i < CIRCLE_COUNT; i++) {
+            const r = (i + 1) * step;
+            if (r > Math.max(width, height)*1.5) continue;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+            ctx.strokeStyle = '#333';
+            ctx.stroke();
+
+            if ((i===0 || i===CIRCLE_COUNT-1) && r < Math.min(width,height)) {
+                ctx.fillStyle = '#666';
+                ctx.font = '10px monospace';
+                let txt = "";
+                if(i===0) txt = invertOctaves ? "LOW" : "HIGH";
+                if(i===CIRCLE_COUNT-1) txt = invertOctaves ? "HIGH" : "LOW";
+                ctx.fillText(txt, centerX + 5, centerY - r + 10);
+            }
+        }
+
+        // Voices
+        activeVoices.forEach(v => {
+            ctx.beginPath();
+            ctx.arc(v.x, v.y, 15, 0, Math.PI*2);
+            ctx.fillStyle = 'var(--accent-active)';
+            ctx.shadowBlur = 15;
+            ctx.shadowColor = 'var(--accent-active)';
+            ctx.fill();
+            ctx.shadowBlur = 0;
+
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(v.x, v.y);
+            ctx.strokeStyle = 'rgba(255,0,85,0.5)';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            // Info text
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px Arial';
+            let info = `${Math.round(v.freq)}Hz`;
+            if (v.midiChannel !== null) {
+                info += ` (Ch ${v.midiChannel+1})`;
+            }
+            ctx.fillText(info, v.x + 20, v.y);
+        });
+
+        requestAnimationFrame(animate);
+    }
+
+    // --- TIEDOSTOT ---
+    document.getElementById('sampleInput').addEventListener('change', function(e) {
+        const f = e.target.files[0];
+        if(!f) return;
+        sf2Loaded = false;
+        const r = new FileReader();
+        r.onload = ev => {
+            if(!audioCtx) audioCtx = new AudioContext();
+            audioCtx.decodeAudioData(ev.target.result, b => {
+                customBuffer = b;
+                statusText.innerText = "Sample ladattu";
+            });
+        };
+        r.readAsArrayBuffer(f);
+    });
+
+    document.getElementById('sf2Input').addEventListener('change', function(e) {
+        const f = e.target.files[0];
+        if(!f) return;
+        const r = new FileReader();
+        r.onload = ev => {
+            if(!audioCtx) audioCtx = new AudioContext();
+            try {
+                sf2Synth = new window.SpessaSynthLib.Synthesizer(audioCtx.destination, ev.target.result);
+                sf2Loaded = true;
+                statusText.innerText = "SF2 ladattu";
+            } catch(err) { console.error(err); }
+        };
+        r.readAsArrayBuffer(f);
+    });
+
+</script>
+</body>
+</html>
