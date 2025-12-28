@@ -30,13 +30,24 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    touch-action: none; /* Estää oletuskosketukset canvaksella */
-    user-select: none;
+    /* Estää canvaksen vahinkomaalaamisen, mutta tämä rikkoo inputit ilman alla olevaa korjausta */
+    user-select: none; 
+    -webkit-user-select: none;
+    touch-action: none; 
 }
 
-/* KORJAUS 1: Sallitaan kosketustoiminnot hallintapaneelissa ja inputeissa */
-#controls, .modal-content, input, select, button {
-    touch-action: manipulation;
+/* --- KORJAUS 1: SALLITAAN INTERAKTIO INPUTEILLE JA NAPEILLE --- */
+/* Tämä on kriittinen kosketusnäytöille. Ilman tätä inputit eivät aktivoidu. */
+#controls, .modal-content {
+    touch-action: manipulation; /* Sallii normaalin naputtelun valikoissa */
+}
+
+input, select, button, textarea {
+    user-select: text !important;
+    -webkit-user-select: text !important; /* Safari vaatii tämän */
+    pointer-events: auto !important;
+    touch-action: manipulation !important;
+    z-index: 20; /* Varmistetaan että ovat päällimmäisenä */
 }
 
 /* Yläpalkki */
@@ -119,7 +130,7 @@ button.active { background: var(--accent-active); border-color: var(--accent-act
     position: relative;
     cursor: ns-resize;
     box-shadow: inset 0 0 10px #000;
-    touch-action: none; /* Tärkeä pyörille */
+    touch-action: none;
 }
 .wheel-mark {
     position: absolute; left: 0; right: 0; height: 2px;
@@ -572,10 +583,14 @@ function populateScaleList() { /* (Same as before) */
 }
 scaleSearchInput.addEventListener('input', (e) => { state.scaleFilter = e.target.value; populateScaleList(); });
 scaleRootInput.addEventListener('change', (e) => { state.scaleRoot = parseInt(e.target.value) || 0; });
-scaleSelect.addEventListener('change', (e) => {
+
+// KORJAUS 2: Lisätään 'input' kuuntelija mobiililaitteille, jotta valinta rekisteröityy heti
+const onScaleChange = (e) => {
     const idx = e.target.value;
     state.selectedScale = idx !== "" ? scalesList[idx] : null;
-});
+};
+scaleSelect.addEventListener('change', onScaleChange);
+scaleSelect.addEventListener('input', onScaleChange);
 
 const chordSelect = document.getElementById('chordSelect');
 const chordSearchInput = document.getElementById('chordSearchInput');
@@ -594,10 +609,13 @@ function populateChordList() { /* (Same as before) */
 }
 chordSearchInput.addEventListener('input', (e) => { state.chordFilter = e.target.value; populateChordList(); });
 chordRootInput.addEventListener('change', (e) => { state.chordRoot = parseInt(e.target.value) || 0; });
-chordSelect.addEventListener('change', (e) => {
+
+const onChordChange = (e) => {
     const idx = e.target.value;
     state.selectedChord = idx !== "" ? chordList[idx] : null;
-});
+};
+chordSelect.addEventListener('change', onChordChange);
+chordSelect.addEventListener('input', onChordChange);
 
 // --- AUDIO INIT ---
 
@@ -1161,7 +1179,7 @@ document.getElementById('startBtn').addEventListener('click', async () => {
     initCanvas();
     animate();
     
-    // --- KORJAUS 2: WHEEL TOUCH SUPPORT ---
+    // --- WHEEL TOUCH SUPPORT ---
     const bW = document.getElementById('bendWheel');
     let bending = false;
     const sB = () => bending = true;
@@ -1214,11 +1232,21 @@ document.getElementById('startBtn').addEventListener('click', async () => {
 });
 
 // UI Event Listeners (Rest)
+// Lisätään standardi kuuntelijat
 document.getElementById('arpBtn').addEventListener('click', e => { state.arp = !state.arp; e.target.classList.toggle('active', state.arp); if(!state.arp) arpNotes=[]; });
 document.getElementById('holdBtn').addEventListener('click', e => { state.hold = !state.hold; e.target.classList.toggle('active', state.hold); if(!state.hold) activeVoices.clear(); });
 document.getElementById('notesBtn').addEventListener('click', e => { state.snapToGrid = !state.snapToGrid; e.target.classList.toggle('active'); });
 document.getElementById('invertBtn').addEventListener('click', e => { state.invertOctaves = !state.invertOctaves; e.target.classList.toggle('active'); });
 document.getElementById('zoomSlider').addEventListener('input', e => { state.zoom = parseFloat(e.target.value); resize(); });
+document.getElementById('edoInput').addEventListener('input', e => { state.edo = parseInt(e.target.value)||12; populateScaleList(); populateChordList(); });
+document.getElementById('baseFreqInput').addEventListener('input', e => { state.baseFreq = parseFloat(e.target.value)||261.63; });
+document.getElementById('customToggleBtn').addEventListener('click', e => { 
+    state.customMode = !state.customMode; 
+    e.target.innerText = state.customMode ? "ON" : "OFF"; 
+    e.target.classList.toggle('active', state.customMode); 
+});
+document.getElementById('customEditBtn').addEventListener('click', () => { document.getElementById('customModal').style.display = 'flex'; });
+document.getElementById('closeCustomBtn').addEventListener('click', () => { document.getElementById('customModal').style.display = 'none'; });
 document.getElementById('sampleInput').addEventListener('change', e => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>{ audioCtx.decodeAudioData(ev.target.result, b=>{ customBuffer=applyCrossfadeToBuffer(b,0.4,1.4,0.05); statusText.innerText="Sample OK"; }); }; r.readAsArrayBuffer(f); }});
 
 populateScaleList();
