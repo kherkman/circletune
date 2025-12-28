@@ -4,11 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Futuristic Orbital Synth: Ultimate Edition + FX</title>
-<!-- Ladataan moduulit -->
+<!-- Ladataan asteikot globaaliin muuttujaan scalesList ennen moduulia -->
 <script src="scaleList.js"></script>
+<!-- Ladataan soinnut globaaliin muuttujaan chordList -->
 <script src="chordList.js"></script>
+<!-- Ladataan intervallit globaaliin muuttujaan intervalList -->
 <script src="intervals.js"></script>
-<script src="fx.js"></script> 
 <style>
 :root {
     --bg-color: #050505;
@@ -30,24 +31,13 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    /* Estää canvaksen vahinkomaalaamisen, mutta tämä rikkoo inputit ilman alla olevaa korjausta */
-    user-select: none; 
-    -webkit-user-select: none;
-    touch-action: none; 
+    touch-action: none;
+    user-select: none;
 }
 
-/* --- KORJAUS 1: SALLITAAN INTERAKTIO INPUTEILLE JA NAPEILLE --- */
-/* Tämä on kriittinen kosketusnäytöille. Ilman tätä inputit eivät aktivoidu. */
-#controls, .modal-content {
-    touch-action: manipulation; /* Sallii normaalin naputtelun valikoissa */
-}
-
-input, select, button, textarea {
-    user-select: text !important;
-    -webkit-user-select: text !important; /* Safari vaatii tämän */
-    pointer-events: auto !important;
-    touch-action: manipulation !important;
-    z-index: 20; /* Varmistetaan että ovat päällimmäisenä */
+/* KORJAUS: Sallitaan kosketustoiminnot hallintapaneelissa ja inputeissa */
+#controls, .modal-content, input, select, button {
+    touch-action: manipulation;
 }
 
 /* Yläpalkki */
@@ -73,9 +63,19 @@ input, select, button, textarea {
     align-items: center;
 }
 
-.separator { width: 1px; height: 50px; background: #333; margin: 0 2px; }
+.separator {
+    width: 1px;
+    height: 50px;
+    background: #333;
+    margin: 0 2px;
+}
 
-label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px; color: #888; }
+label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #888;
+}
 
 input, select, button {
     background: #222;
@@ -130,7 +130,7 @@ button.active { background: var(--accent-active); border-color: var(--accent-act
     position: relative;
     cursor: ns-resize;
     box-shadow: inset 0 0 10px #000;
-    touch-action: none;
+    touch-action: none; /* Tärkeä pyörille */
 }
 .wheel-mark {
     position: absolute; left: 0; right: 0; height: 2px;
@@ -155,7 +155,7 @@ button.active { background: var(--accent-active); border-color: var(--accent-act
     display: flex; flex-direction: column; gap: 10px;
 }
 
-/* --- FX MODAL STYLES --- */
+/* --- FX MODAL STYLES (New from old18) --- */
 #fxModal .modal-content {
     width: 600px;
     background: #111;
@@ -207,8 +207,39 @@ button.active { background: var(--accent-active); border-color: var(--accent-act
 .adsr-controls { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 5px; margin-top: 5px; }
 .adsr-controls label { font-size: 0.55rem; text-align: center; }
 
+/* Custom Modal Specifics */
+.ratio-row { 
+    display: flex; gap: 10px; align-items: center; 
+    font-size: 0.8rem; color: #aaa; 
+    white-space: nowrap; 
+}
+.ratio-row input { width: 100px; text-align: left; }
+.ratio-info { font-size: 0.7rem; color: var(--accent); margin-left: 5px; }
+
+/* Info Modal Specifics */
+#infoContent {
+    font-size: 0.8rem;
+    line-height: 1.4;
+    color: #ccc;
+    max-height: 400px;
+    overflow-y: auto;
+}
+.info-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+.info-label { color: var(--accent); font-weight: bold; display: block; margin-bottom: 4px; }
+
+/* Interval List Modal Specifics */
+#intervalTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.75rem;
+}
+#intervalTable th { text-align: left; color: var(--accent); border-bottom: 1px solid #444; padding: 4px; }
+#intervalTable td { border-bottom: 1px solid #222; padding: 4px; color: #aaa; }
+
 /* Canvas */
-#canvas-container { flex-grow: 1; position: relative; cursor: crosshair; overflow: hidden; width: 100%; }
+#canvas-container {
+    flex-grow: 1; position: relative; cursor: crosshair; overflow: hidden; width: 100%;
+}
 canvas { display: block; width: 100%; height: 100%; }
 
 /* Overlay */
@@ -220,18 +251,6 @@ canvas { display: block; width: 100%; height: 100%; }
 }
 h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent); margin-bottom: 20px; text-align: center; }
 .status { font-size: 0.7rem; color: #ff9900; margin-left: 5px; white-space: nowrap; }
-
-/* Reuse Custom/Info modal styles */
-.ratio-row { display: flex; gap: 10px; align-items: center; font-size: 0.8rem; color: #aaa; white-space: nowrap; }
-.ratio-row input { width: 100px; text-align: left; }
-.ratio-info { font-size: 0.7rem; color: var(--accent); margin-left: 5px; }
-#infoContent { font-size: 0.8rem; line-height: 1.4; color: #ccc; max-height: 400px; overflow-y: auto; }
-.info-section { margin-bottom: 15px; border-bottom: 1px solid #333; padding-bottom: 10px; }
-.info-label { color: var(--accent); font-weight: bold; display: block; margin-bottom: 4px; }
-#intervalTable { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
-#intervalTable th { text-align: left; color: var(--accent); border-bottom: 1px solid #444; padding: 4px; }
-#intervalTable td { border-bottom: 1px solid #222; padding: 4px; color: #aaa; }
-
 </style>
 <script type="module">
     import { SpessaSynth } from 'https://esm.sh/spessasynth_lib@1.0.8';
@@ -240,7 +259,7 @@ h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent);
 </head>
 <body>
 
-<!-- FX MODAL -->
+<!-- FX MODAL (NEW) -->
 <div id="fxModal" class="modal-overlay">
     <div class="modal-content">
         <h3 style="margin:0; text-align:center; color:var(--accent); margin-bottom:10px;">FX RACK</h3>
@@ -333,7 +352,9 @@ h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent);
             <span>Nuotteja/oktaavi:</span>
             <input type="number" id="customNoteCount" value="12" min="1" max="96" style="width:50px; text-align:center;">
         </div>
-        <div id="ratioContainer" style="display:flex; flex-direction:column; gap:5px; border-top:1px solid #333; padding-top:10px;"></div>
+        <div id="ratioContainer" style="display:flex; flex-direction:column; gap:5px; border-top:1px solid #333; padding-top:10px;">
+            <!-- Generated dynamically -->
+        </div>
         <div style="display:flex; gap:10px; margin-top:10px;">
             <button id="saveCustomBtn" style="flex:1;">Tallenna</button>
             <button id="loadCustomBtn" style="flex:1;">Lataa</button>
@@ -348,7 +369,9 @@ h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent);
 <div id="infoModal" class="modal-overlay">
     <div class="modal-content">
         <h3 style="margin:0; text-align:center; color:var(--accent); margin-bottom:10px;">INFO</h3>
-        <div id="infoContent"></div>
+        <div id="infoContent">
+            <!-- Populated via JS -->
+        </div>
         <button id="closeInfoBtn" style="margin-top:10px; background:#333; color:#fff;">Sulje</button>
     </div>
 </div>
@@ -420,6 +443,7 @@ h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent);
             <input type="number" id="edoInput" value="12" style="width: 35px;" title="EDO Steps">
             <input type="number" id="baseFreqInput" value="261" style="width: 40px;" title="Base Hz">
         </div>
+        <!-- INFO BUTTON ADDED HERE -->
         <button id="infoBtn" style="width: 100%; margin-top: 4px; font-size: 0.65rem;">INFO</button>
     </div>
 
@@ -459,7 +483,7 @@ h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent);
             <button id="notesBtn">Notes</button>
             <button id="invertBtn">Invert</button>
         </div>
-        <!-- FX BUTTON -->
+        <!-- FX BUTTON (NEW) -->
         <button id="fxBtn" style="margin-top:2px; width:100%; border:1px solid var(--accent); color:var(--accent);">FX</button>
     </div>
 
@@ -499,13 +523,16 @@ h1 { font-weight: 300; letter-spacing: 4px; text-shadow: 0 0 10px var(--accent);
 </div>
 
 <script type="module">
-// --- EXISTING CONFIG & STATE ---
+/**
+* CONFIG & STATE
+*/
 const CIRCLE_COUNT = 10;
 const BASE_OCTAVE_HIGH = 8;
 const LOWEST_OCTAVE = -1;
 const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const NOTE_NAMES_31 = ["C", "^C", "C#", "^C#", "vD", "D", "^D", "D#", "Eb", "vE", "E", "^E", "vF", "F", "vF#", "F#", "^F#", "vG", "G", "^G", "G#", "^G#", "vA", "A", "^A", "A#", "Bb", "vB", "B", "B#", "Cb"];
 
+// COLORS (Hardcoded for Canvas)
 const COLOR_ACCENT = '#00f3ff';
 const COLOR_ACCENT_ACTIVE = '#ff0055';
 
@@ -513,122 +540,571 @@ let state = {
     zoom: 1.0,
     invertOctaves: false,
     snapToGrid: false,
+
+    // Tuning
     baseFreq: 261.63,
     edo: 12,
     customMode: false,
-    customSettings: { count: 12, ratios: [] },
+    customSettings: {
+        count: 12,
+        ratios: [] // Filled dynamically
+    },
+
+    // Scale
     scaleRoot: 0,
-    selectedScale: null,
+    selectedScale: null, // { name: "...", steps: [...] }
     scaleFilter: "",
+
+    // Chord
     chordRoot: 0,
-    selectedChord: null,
+    selectedChord: null, // { name: "...", steps: [...] }
     chordFilter: "",
+
+    // Play Modes
     hold: false,
     arp: false,
-    arpPattern: [0, 1, 2, 3, 4, 5, 6, 7],
+    arpPattern: [0, 1, 2, 3, 4, 5, 6, 7], // Default linear pattern
     tempo: 120,
+
+    // Wheels
     bend: 0,
     mod: 0,
-    modTarget: 'vibrato'
+    modTarget: 'vibrato' // 'vibrato', 'saturation', 'resonance'
 };
 
+// Initialize default custom ratios (12TET)
 for(let i=0; i<12; i++) state.customSettings.ratios.push(Math.pow(2, i/12));
 
+// Audio / Engine
 let audioCtx;
 let mainGain;
-let masterFilter;
-let waveShaper;
+
+// Global Effects Nodes
+let masterFilter; // Resonance
+let waveShaper; // Saturation
 let fxEngine; // NEW FX ENGINE
 
 let customBuffer = null;
-let loadedSounds = {};
+let loadedSounds = {}; // Stores sound1...sound4 buffers
 let sf2Synth = null;
 let sf2Loaded = false;
 let vibratoLfo;
-let vibratoGainFreq;
-let vibratoGainRate;
+let vibratoGainFreq; // For oscillators (Hz)
+let vibratoGainRate; // For samples (PlaybackRate)
 
+// MIDI
 let midiAccess = null;
 let midiOutput = null;
 let midiInput = null;
 const midiChannels = new Array(16).fill(false);
 
+// Canvas
 let canvas, ctx;
 let width, height, centerX, centerY, baseRadius;
 
-const activeVoices = new Map();
-let arpNotes = [];
+// Voices & ARP State
+const activeVoices = new Map(); // For standard/hold mode
+
+// ARP Specific
+let arpNotes = []; // List of currently pressed notes data
 let nextNoteTime = 0;
 let arpIndex = 0;
 let tapTimes = [];
-let currentArpId = null;
+let currentArpId = null; // Currently playing ARP note ID for visualization
 
 const statusText = document.getElementById('statusText');
 
-// --- SCALE & CHORD LISTS (Existing) ---
+// --- SCALE LIST HANDLING ---
 const scaleSelect = document.getElementById('scaleSelect');
 const scaleSearchInput = document.getElementById('scaleSearchInput');
 const scaleRootInput = document.getElementById('scaleRootInput');
-function populateScaleList() { /* (Same as before) */ 
-    if (typeof scalesList === 'undefined') return;
+
+function populateScaleList() {
+    if (typeof scalesList === 'undefined') {
+        console.warn("scalesList ei ole ladattu.");
+        return;
+    }
+
     scaleSelect.innerHTML = '<option value="">- Valitse -</option>';
     const term = state.scaleFilter.toLowerCase();
+
     scalesList.forEach((scale, index) => {
         if (scale.edo !== state.edo) return;
         if (term && !scale.name.toLowerCase().includes(term)) return;
+
         const opt = document.createElement('option');
-        opt.value = index; opt.text = scale.name;
+        opt.value = index; 
+        opt.text = scale.name;
         scaleSelect.appendChild(opt);
     });
 }
-scaleSearchInput.addEventListener('input', (e) => { state.scaleFilter = e.target.value; populateScaleList(); });
-scaleRootInput.addEventListener('change', (e) => { state.scaleRoot = parseInt(e.target.value) || 0; });
 
-// KORJAUS 2: Lisätään 'input' kuuntelija mobiililaitteille, jotta valinta rekisteröityy heti
-const onScaleChange = (e) => {
+scaleSearchInput.addEventListener('input', (e) => {
+    state.scaleFilter = e.target.value;
+    populateScaleList();
+});
+
+scaleRootInput.addEventListener('change', (e) => {
+    state.scaleRoot = parseInt(e.target.value) || 0;
+});
+
+scaleSelect.addEventListener('change', (e) => {
     const idx = e.target.value;
-    state.selectedScale = idx !== "" ? scalesList[idx] : null;
-};
-scaleSelect.addEventListener('change', onScaleChange);
-scaleSelect.addEventListener('input', onScaleChange);
+    if (idx !== "") {
+        state.selectedScale = scalesList[idx];
+    } else {
+        state.selectedScale = null;
+    }
+});
 
+// --- CHORD LIST HANDLING ---
 const chordSelect = document.getElementById('chordSelect');
 const chordSearchInput = document.getElementById('chordSearchInput');
 const chordRootInput = document.getElementById('chordRootInput');
-function populateChordList() { /* (Same as before) */ 
-    if (typeof chordList === 'undefined') return;
+
+function populateChordList() {
+    if (typeof chordList === 'undefined') {
+        console.warn("chordList ei ole ladattu.");
+        return;
+    }
+
     chordSelect.innerHTML = '<option value="">- Valitse -</option>';
     const term = state.chordFilter.toLowerCase();
+
     chordList.forEach((chord, index) => {
         if (chord.edo !== state.edo) return;
         if (term && !chord.name.toLowerCase().includes(term)) return;
+
         const opt = document.createElement('option');
-        opt.value = index; opt.text = chord.name;
+        opt.value = index; 
+        opt.text = chord.name;
         chordSelect.appendChild(opt);
     });
 }
-chordSearchInput.addEventListener('input', (e) => { state.chordFilter = e.target.value; populateChordList(); });
-chordRootInput.addEventListener('change', (e) => { state.chordRoot = parseInt(e.target.value) || 0; });
 
-const onChordChange = (e) => {
+chordSearchInput.addEventListener('input', (e) => {
+    state.chordFilter = e.target.value;
+    populateChordList();
+});
+
+chordRootInput.addEventListener('change', (e) => {
+    state.chordRoot = parseInt(e.target.value) || 0;
+});
+
+chordSelect.addEventListener('change', (e) => {
     const idx = e.target.value;
-    state.selectedChord = idx !== "" ? chordList[idx] : null;
-};
-chordSelect.addEventListener('change', onChordChange);
-chordSelect.addEventListener('input', onChordChange);
+    if (idx !== "") {
+        state.selectedChord = chordList[idx];
+    } else {
+        state.selectedChord = null;
+    }
+});
 
-// --- AUDIO INIT ---
+// --- INFO MODAL HANDLING ---
+const infoModal = document.getElementById('infoModal');
+const infoContent = document.getElementById('infoContent');
+const infoBtn = document.getElementById('infoBtn');
+const closeInfoBtn = document.getElementById('closeInfoBtn');
 
+function calculateModes(steps) {
+    let modes = [];
+    let currentSteps = [...steps];
+    
+    // Scale usually doesn't include the octave repeat step in definition in some formats,
+    // but here steps sum to EDO. We just rotate.
+    for (let i = 0; i < currentSteps.length; i++) {
+        modes.push(`Mode ${i + 1}: [${currentSteps.join(', ')}]`);
+        // Rotate: take first, push to end
+        const first = currentSteps.shift();
+        currentSteps.push(first);
+    }
+    return modes;
+}
+
+function findIntervalNameForStep(stepsFromRoot, edo) {
+    if (typeof intervalList === 'undefined') return "";
+    
+    const ratio = Math.pow(2, stepsFromRoot / edo);
+    const tolerance = 0.01; // generous tolerance for microtonal matching
+    
+    // Find closest interval in the list
+    let bestMatch = null;
+    let minDiff = Infinity;
+
+    intervalList.forEach(interval => {
+        const diff = Math.abs(interval.decimal - ratio);
+        if (diff < minDiff) {
+            minDiff = diff;
+            bestMatch = interval;
+        }
+    });
+
+    if (bestMatch && minDiff < tolerance) {
+        return `${bestMatch.name} (${bestMatch.ratio})`;
+    }
+    return `~ ${ratio.toFixed(4)}`;
+}
+
+// Apufunktio: Tarkistaa ovatko kaksi taulukkoa (asteikon askeleet) identtiset
+function arraysEqual(a, b) {
+    if (a.length !== b.length) return false;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i] !== b[i]) return false;
+    }
+    return true;
+}
+
+// Apufunktio: Etsii asteikon nimen askeleiden ja EDO:n perusteella
+function findScaleNameBySteps(steps, edo) {
+    if (typeof scalesList === 'undefined') return null;
+    // Etsitään scalesLististä vastaavuus
+    const match = scalesList.find(s => s.edo === edo && arraysEqual(s.steps, steps));
+    return match ? match.name : null;
+}
+
+function populateInfoModal() {
+    let html = "";
+
+    // 1. EDO Formula
+    html += `<div class="info-section">
+        <span class="info-label">Current Tuning Formula</span>
+        <span>f(i) = BaseFreq * 2^(i / ${state.edo})</span>
+    </div>`;
+
+    // 2. Scale Info (Moodien nimien tunnistus lisätty tähän)
+    if (state.selectedScale) {
+        html += `<div class="info-section">
+            <span class="info-label">Scale: ${state.selectedScale.name}</span>
+            <span>Steps: [${state.selectedScale.steps.join(', ')}]</span><br><br>
+            <span class="info-label">Modes</span>
+            <div style="font-family:monospace; font-size:0.75rem;">`;
+
+        // Luodaan kopio askeleista kierrätystä varten
+        let currentSteps = [...state.selectedScale.steps];
+
+        // Käydään läpi kaikki moodit (yhtä monta kuin askeleita)
+        for (let i = 0; i < currentSteps.length; i++) {
+            // Yritetään löytää nimi tälle moodille tietokannasta
+            const knownName = findScaleNameBySteps(currentSteps, state.edo);
+            
+            // Jos nimi löytyy, näytetään se korostettuna värillä
+            const nameDisplay = knownName ? ` <span style="color:${COLOR_ACCENT}; font-weight:bold;"> — ${knownName}</span>` : "";
+
+            html += `Mode ${i + 1}: [${currentSteps.join(', ')}]${nameDisplay}<br>`;
+
+            // Kierrätys: Siirretään ensimmäinen luku viimeiseksi (Rotate left)
+            const first = currentSteps.shift();
+            currentSteps.push(first);
+        }
+
+        html += `</div></div>`;
+    } else {
+        html += `<div class="info-section"><span class="info-label">Scale</span><span>No scale selected.</span></div>`;
+    }
+
+    // 3. Chord Info (Pysyy ennallaan)
+    if (state.selectedChord) {
+        html += `<div class="info-section">
+            <span class="info-label">Chord: ${state.selectedChord.name}</span>
+            <span>Steps (from root): [0, ${state.selectedChord.steps.join(', ')}]</span><br><br>
+            <span class="info-label">Intervals</span>
+            <div style="font-family:monospace; font-size:0.75rem;">`;
+        
+        html += `0: Unison (1/1)<br>`;
+        
+        state.selectedChord.steps.forEach(step => {
+            const intName = findIntervalNameForStep(step, state.edo);
+            html += `${step}: ${intName}<br>`;
+        });
+
+        html += `</div></div>`;
+    } else {
+        html += `<div class="info-section"><span class="info-label">Chord</span><span>No chord selected.</span></div>`;
+    }
+
+    infoContent.innerHTML = html;
+}
+
+infoBtn.addEventListener('click', () => {
+    populateInfoModal();
+    infoModal.style.display = 'flex';
+});
+
+closeInfoBtn.addEventListener('click', () => {
+    infoModal.style.display = 'none';
+});
+
+// --- INTERVAL LIST MODAL HANDLING ---
+const intervalListModal = document.getElementById('intervalListModal');
+const intervalTableBody = document.getElementById('intervalTableBody');
+const viewIntervalsBtn = document.getElementById('viewIntervalsBtn');
+const closeIntervalListBtn = document.getElementById('closeIntervalListBtn');
+
+function populateIntervalListModal() {
+    intervalTableBody.innerHTML = "";
+    if (typeof intervalList === 'undefined') return;
+
+    intervalList.forEach(interval => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${interval.name}</td>
+            <td>${interval.ratio}</td>
+            <td>${interval.cents}</td>
+        `;
+        intervalTableBody.appendChild(row);
+    });
+}
+
+viewIntervalsBtn.addEventListener('click', () => {
+    populateIntervalListModal();
+    // Hide custom modal if open (optional UI choice, keeping them separate is cleaner)
+    // modal.style.display = 'none'; 
+    intervalListModal.style.display = 'flex';
+});
+
+closeIntervalListBtn.addEventListener('click', () => {
+    intervalListModal.style.display = 'none';
+});
+
+/* --- INTERNAL FX CLASS (Replaces external fx.js) --- */
+class FXEngineClass {
+    constructor(audioCtx) {
+        this.ctx = audioCtx;
+        
+        // Main I/O
+        this.input = this.ctx.createGain();
+        this.output = this.ctx.createGain();
+
+        // ADSR Data (Used in Voice class, visualized here)
+        this.adsr = { attack: 0.01, decay: 0.1, sustain: 0.5, release: 0.5 };
+
+        // 1. EQ Chain
+        this.hpf = this.ctx.createBiquadFilter(); this.hpf.type = 'highpass'; this.hpf.frequency.value = 20;
+        this.eqLow = this.ctx.createBiquadFilter(); this.eqLow.type = 'lowshelf'; this.eqLow.frequency.value = 200;
+        this.eqMid = this.ctx.createBiquadFilter(); this.eqMid.type = 'peaking'; this.eqMid.frequency.value = 1000; this.eqMid.Q.value = 1;
+        this.eqHigh = this.ctx.createBiquadFilter(); this.eqHigh.type = 'highshelf'; this.eqHigh.frequency.value = 3000;
+        this.lpf = this.ctx.createBiquadFilter(); this.lpf.type = 'lowpass'; this.lpf.frequency.value = 20000;
+
+        // 2. Delay
+        this.delay = this.createModule('delay', (input, output) => {
+            const d = this.ctx.createDelay(5.0);
+            const fb = this.ctx.createGain();
+            input.connect(d);
+            d.connect(fb);
+            fb.connect(d);
+            d.connect(output);
+            return { delayNode: d, fbNode: fb };
+        });
+
+        // 3. Reverb (Simple Convolver with Noise Buffer)
+        this.reverb = this.createModule('reverb', (input, output) => {
+            const conv = this.ctx.createConvolver();
+            this.updateReverbImpulse(conv, 2.0); // Default 2s
+            input.connect(conv);
+            conv.connect(output);
+            return { convNode: conv };
+        });
+
+        // 4. Chorus (Delay + LFO)
+        this.chorus = this.createModule('chorus', (input, output) => {
+            const d = this.ctx.createDelay(); d.delayTime.value = 0.03;
+            const lfo = this.ctx.createOscillator(); lfo.frequency.value = 1.5;
+            const lfoG = this.ctx.createGain(); lfoG.gain.value = 0.002;
+            lfo.connect(lfoG); lfoG.connect(d.delayTime);
+            lfo.start();
+            input.connect(d); d.connect(output);
+            return { delayNode: d, lfoNode: lfo, lfoGain: lfoG };
+        });
+
+        // 5. Flanger (Short Delay + Feedback + LFO)
+        this.flanger = this.createModule('flanger', (input, output) => {
+            const d = this.ctx.createDelay(); d.delayTime.value = 0.005;
+            const fb = this.ctx.createGain(); fb.gain.value = 0.5;
+            const lfo = this.ctx.createOscillator(); lfo.frequency.value = 0.5;
+            const lfoG = this.ctx.createGain(); lfoG.gain.value = 0.002;
+            lfo.connect(lfoG); lfoG.connect(d.delayTime);
+            lfo.start();
+            input.connect(d); d.connect(fb); fb.connect(d); d.connect(output);
+            return { delayNode: d, fbNode: fb, lfoNode: lfo, lfoGain: lfoG };
+        });
+
+        // 6. Phaser (Biquad Notch Sweep - Simplified)
+        this.phaser = this.createModule('phaser', (input, output) => {
+            const f1 = this.ctx.createBiquadFilter(); f1.type='allpass'; f1.frequency.value=500;
+            const f2 = this.ctx.createBiquadFilter(); f2.type='allpass'; f2.frequency.value=1500;
+            const lfo = this.ctx.createOscillator(); lfo.frequency.value = 1.0;
+            const lfoG = this.ctx.createGain(); lfoG.gain.value = 800;
+            lfo.connect(lfoG); lfoG.connect(f1.frequency); lfoG.connect(f2.frequency);
+            lfo.start();
+            input.connect(f1); f1.connect(f2); f2.connect(output);
+            return { lfoNode: lfo, lfoGain: lfoG };
+        });
+
+        // Chain Connection
+        // Input -> EQ -> Chorus -> Phaser -> Flanger -> Delay -> Reverb -> Output
+        this.input.connect(this.hpf);
+        this.hpf.connect(this.eqLow);
+        this.eqLow.connect(this.eqMid);
+        this.eqMid.connect(this.eqHigh);
+        this.eqHigh.connect(this.lpf);
+        
+        let chain = this.lpf;
+        chain = this.connectModule(chain, this.chorus);
+        chain = this.connectModule(chain, this.phaser);
+        chain = this.connectModule(chain, this.flanger);
+        chain = this.connectModule(chain, this.delay);
+        chain = this.connectModule(chain, this.reverb);
+        
+        chain.connect(this.output);
+    }
+
+    createModule(name, builder) {
+        const input = this.ctx.createGain();
+        const output = this.ctx.createGain();
+        const dry = this.ctx.createGain();
+        const wet = this.ctx.createGain(); wet.gain.value = 0.5;
+        
+        const nodes = builder(input, wet); // effect internal processing
+        wet.connect(output);
+        input.connect(dry);
+        dry.connect(output);
+
+        return {
+            name, input, output, dry, wet, nodes, active: false,
+            toggle: (isActive) => {
+                this.active = isActive;
+                // Simple bypass: if active, wet is audible. If not, only dry (handled by mix usually, but for toggle we mute wet)
+                // Actually better: If OFF, bypass effect processing entirely? 
+                // For simplicity here: OFF = Mix 0 (Dry only), ON = Mix UserVal
+                if(isActive) wet.gain.value = this.userMix || 0.5;
+                else wet.gain.value = 0;
+            },
+            set: (param, val) => {
+                if(param === 'mix') {
+                    this.userMix = val;
+                    if(this.active !== false) { // Default true if undefined
+                         wet.gain.value = val;
+                         dry.gain.value = 1 - val;
+                    }
+                }
+                // Specific Param Mappings
+                if(name === 'delay') {
+                    if(param === 'time') nodes.delayNode.delayTime.value = val;
+                    if(param === 'feedback') nodes.fbNode.gain.value = val;
+                }
+                if(name === 'reverb') {
+                    if(param === 'size') this.updateReverbImpulse(nodes.convNode, val);
+                }
+                if(name === 'chorus' || name === 'flanger') {
+                    if(param === 'rate') nodes.lfoNode.frequency.value = val;
+                    if(param === 'depth') nodes.lfoGain.gain.value = val * 0.005;
+                    if(param === 'feedback' && nodes.fbNode) nodes.fbNode.gain.value = val;
+                }
+                if(name === 'phaser') {
+                    if(param === 'rate') nodes.lfoNode.frequency.value = val;
+                    if(param === 'depth') nodes.lfoGain.gain.value = val * 1000;
+                }
+            }
+        };
+    }
+
+    connectModule(prevNode, module) {
+        prevNode.connect(module.input);
+        // Initialize as OFF (Dry only)
+        module.dry.gain.value = 1;
+        module.wet.gain.value = 0;
+        module.active = false;
+        return module.output;
+    }
+
+    updateReverbImpulse(convNode, duration) {
+        const rate = this.ctx.sampleRate;
+        const length = rate * duration;
+        const impulse = this.ctx.createBuffer(2, length, rate);
+        for (let i = 0; i < 2; i++) {
+            const ch = impulse.getChannelData(i);
+            for (let j = 0; j < length; j++) {
+                ch[j] = (Math.random() * 2 - 1) * Math.pow(1 - j / length, 2);
+            }
+        }
+        convNode.buffer = impulse;
+    }
+
+    getAdsr() { return this.adsr; }
+
+    drawAdsr(canvas) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        const a = parseFloat(this.adsr.attack);
+        const d = parseFloat(this.adsr.decay);
+        const s = parseFloat(this.adsr.sustain);
+        const r = parseFloat(this.adsr.release);
+        const total = a + d + 1 + r; // 1 arbitrary sustain unit width
+        
+        const xA = (a / total) * w;
+        const xD = ((a+d)/total) * w;
+        const xS = ((a+d+1)/total) * w;
+        
+        ctx.moveTo(0, h);
+        ctx.lineTo(xA, 0); // Attack Peak
+        ctx.lineTo(xD, h * (1-s)); // Decay to Sustain
+        ctx.lineTo(xS, h * (1-s)); // Sustain hold
+        ctx.lineTo(w, h); // Release
+        ctx.stroke();
+    }
+
+    drawEq(canvas) {
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0,0,w,h);
+        ctx.fillStyle = '#222'; ctx.fillRect(0,0,w,h);
+        
+        ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 2;
+        ctx.beginPath();
+        // Mock curve visualization based on gains
+        const yBase = h/2;
+        ctx.moveTo(0, yBase);
+        
+        const low = this.eqLow.gain.value;
+        const mid = this.eqMid.gain.value;
+        const high = this.eqHigh.gain.value;
+        
+        // Simple Bezier approximation
+        ctx.bezierCurveTo(w*0.25, yBase - low*2, w*0.5, yBase - mid*2, w*0.75, yBase - high*2);
+        ctx.lineTo(w, yBase);
+        ctx.stroke();
+    }
+}
+
+
+// --- AUDIO INIT & CROSSFADE ---
+
+// Helper for Saturation Curve
 function makeDistortionCurve(amount) {
     const k = typeof amount === 'number' ? amount : 50;
     const n_samples = 44100;
     const curve = new Float32Array(n_samples);
     const deg = Math.PI / 180;
-    if (amount === 0) { for (let i = 0; i < n_samples; ++i) curve[i] = (i * 2) / n_samples - 1; }
-    else { for (let i = 0; i < n_samples; ++i) { const x = (i * 2) / n_samples - 1; curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x)); } }
+
+    if (amount === 0) {
+        for (let i = 0; i < n_samples; ++i) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = x;
+        }
+    } else {
+        for (let i = 0; i < n_samples; ++i) {
+            const x = (i * 2) / n_samples - 1;
+            curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+        }
+    }
     return curve;
 }
 
+// Funktio, joka polttaa ristiinhäivytyksen loopin loppuun
 function applyCrossfadeToBuffer(originalBuffer, loopStart, loopEnd, crossfadeDuration) {
     const numberOfChannels = originalBuffer.numberOfChannels;
     const sampleRate = originalBuffer.sampleRate;
@@ -637,17 +1113,26 @@ function applyCrossfadeToBuffer(originalBuffer, loopStart, loopEnd, crossfadeDur
     for (let channel = 0; channel < numberOfChannels; channel++) {
         const oldData = originalBuffer.getChannelData(channel);
         const newData = newBuffer.getChannelData(channel);
+
         newData.set(oldData);
+
         const startSample = Math.floor(loopStart * sampleRate);
         const endSample = Math.floor(loopEnd * sampleRate);
         const fadeSamples = Math.floor(crossfadeDuration * sampleRate);
+
         if (endSample > newData.length) continue;
+
         for (let i = 0; i < fadeSamples; i++) {
             const targetIndex = endSample - fadeSamples + i;
             const sourceIndex = startSample + i;
+
             if (targetIndex >= newData.length || sourceIndex >= newData.length) continue;
+
             const progress = i / fadeSamples;
-            newData[targetIndex] = (newData[targetIndex] * (1.0 - progress)) + (newData[sourceIndex] * progress);
+            const gainOut = 1.0 - progress;
+            const gainIn = progress;
+
+            newData[targetIndex] = (newData[targetIndex] * gainOut) + (newData[sourceIndex] * gainIn);
         }
     }
     return newBuffer;
@@ -657,8 +1142,8 @@ async function initAudio() {
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
         
-        // --- FX ENGINE INIT ---
-        fxEngine = new window.FXEngineClass(audioCtx);
+        // --- FX ENGINE INIT (NEW) ---
+        fxEngine = new FXEngineClass(audioCtx);
         initFxUi();
 
         mainGain = audioCtx.createGain();
@@ -666,68 +1151,83 @@ async function initAudio() {
         mainGain.connect(audioCtx.destination);
 
         // --- NODES SETUP ---
+        // 1. Resonance Filter (Lowpass)
         masterFilter = audioCtx.createBiquadFilter();
         masterFilter.type = 'lowpass';
-        masterFilter.frequency.value = 22000;
+        masterFilter.frequency.value = 22000; // Open by default
         masterFilter.Q.value = 1;
 
+        // 2. Saturation (WaveShaper)
         waveShaper = audioCtx.createWaveShaper();
-        waveShaper.curve = makeDistortionCurve(0);
+        waveShaper.curve = makeDistortionCurve(0); // Linear by default
         waveShaper.oversample = '4x';
 
-        // CHAIN: MasterFilter -> WaveShaper -> FXEngine -> MainGain
+        // Connect Chain: Voice -> MasterFilter -> WaveShaper -> FXEngine -> MainGain
         masterFilter.connect(waveShaper);
         waveShaper.connect(fxEngine.input);
         fxEngine.output.connect(mainGain);
 
-        // --- VIBRATO ---
+        // --- VIBRATO SETUP ---
         vibratoLfo = audioCtx.createOscillator();
         vibratoLfo.frequency.value = 6.0;
+
+        // Gain for Osc Frequency modulation (needs large values, e.g. 10-100Hz)
         vibratoGainFreq = audioCtx.createGain();
         vibratoGainFreq.gain.value = 0;
         vibratoLfo.connect(vibratoGainFreq);
+
+        // Gain for PlaybackRate modulation (needs small values, e.g. 0.01-0.1)
         vibratoGainRate = audioCtx.createGain();
         vibratoGainRate.gain.value = 0;
         vibratoLfo.connect(vibratoGainRate);
+
         vibratoLfo.start();
 
-        // LOAD SOUNDS
+        // Yritetään ladata sound1.wav ... sound4.wav
         const soundSelect = document.getElementById('builtInSoundSelect');
         let loadedCount = 0;
+
         for (let i = 1; i <= 4; i++) {
             try {
                 const response = await fetch(`sound${i}.wav`);
                 if (response.ok) {
                     const arrayBuffer = await response.arrayBuffer();
                     const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+                    // Käsitellään ristiinhäivytys
                     const processed = applyCrossfadeToBuffer(decoded, 0.4, 1.4, 0.05);
                     loadedSounds[`sound${i}`] = processed;
+
                     const option = document.createElement('option');
                     option.value = `sound${i}`;
                     option.text = `Sound ${i}`;
                     soundSelect.appendChild(option);
+
                     loadedCount++;
                 }
-            } catch (e) {}
+            } catch (e) {
+                // Ei tehdä mitään
+            }
         }
         if (loadedCount > 0) {
             statusText.innerText = `${loadedCount} Sounds Ready`;
             const synthOpt = soundSelect.querySelector('option[value="synth"]');
-            if(synthOpt) soundSelect.removeChild(synthOpt);
+            if (synthOpt) {
+                soundSelect.removeChild(synthOpt);
+            }
         }
     }
     if (audioCtx.state === 'suspended') await audioCtx.resume();
     initMidi();
 }
 
-// --- VOICE CLASS WITH ADSR ---
+// --- VOICE CLASS WITH ADSR (UPDATED) ---
 class Voice {
     constructor(id, data, duration = 0) {
         this.id = id;
         this.baseFreq = data.freq;
         this.visualX = data.visualX;
         this.visualY = data.visualY;
-        this.duration = duration; // For ARP
+        this.duration = duration; 
 
         this.source = null;
         this.gain = null;
@@ -741,8 +1241,8 @@ class Voice {
 
     start() {
         const freq = applyBend(this.baseFreq);
-        
-        // MIDI Out
+
+        // MIDI OUT
         if (midiOutput) {
             const ch = midiChannels.findIndex(c => !c);
             if (ch !== -1) {
@@ -752,10 +1252,11 @@ class Voice {
             }
         }
 
+        // Audio
         this.gain = audioCtx.createGain();
-        this.gain.connect(masterFilter); // Routes to FX Chain
+        this.gain.connect(masterFilter); // Connects to FX chain
 
-        // ADSR Logic
+        // ADSR Logic (NEW)
         const adsr = fxEngine.getAdsr();
         const now = audioCtx.currentTime;
         const atk = parseFloat(adsr.attack);
@@ -766,7 +1267,6 @@ class Voice {
         this.gain.gain.linearRampToValueAtTime(0.2, now + atk);
         this.gain.gain.linearRampToValueAtTime(0.2 * sus, now + atk + dec);
 
-        // Sound Generation
         if (sf2Loaded && sf2Synth) {
             const note = Math.round(69 + 12 * Math.log2(freq / 440));
             this.sf2Note = note;
@@ -779,12 +1279,15 @@ class Voice {
             this.source.loopStart = 0.4;
             this.source.loopEnd = 1.4;
             this.source.playbackRate.value = freq / state.baseFreq;
+
             if (vibratoGainRate) vibratoGainRate.connect(this.source.playbackRate);
+
             this.source.connect(this.gain);
             this.source.start(0);
         }
         else {
             const selectedSound = document.getElementById('builtInSoundSelect').value;
+
             if (selectedSound !== 'synth' && loadedSounds[selectedSound]) {
                 this.source = audioCtx.createBufferSource();
                 this.source.buffer = loadedSounds[selectedSound];
@@ -792,7 +1295,9 @@ class Voice {
                 this.source.loopStart = 0.4;
                 this.source.loopEnd = 1.4;
                 this.source.playbackRate.value = freq / 261.63;
+
                 if (vibratoGainRate) vibratoGainRate.connect(this.source.playbackRate);
+
                 this.source.connect(this.gain);
                 this.source.start(0);
             }
@@ -800,14 +1305,14 @@ class Voice {
                 this.source = audioCtx.createOscillator();
                 this.source.type = 'sawtooth';
                 this.source.frequency.value = freq;
+
                 if(vibratoGainFreq) vibratoGainFreq.connect(this.source.frequency);
-                
-                // Pre-filter for oscillator to reduce harshness
-                const preFilter = audioCtx.createBiquadFilter();
-                preFilter.type = 'lowpass';
-                preFilter.frequency.value = freq * 4;
-                this.source.connect(preFilter);
-                preFilter.connect(this.gain);
+
+                const filter = audioCtx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = freq * 4;
+                this.source.connect(filter);
+                filter.connect(this.gain);
                 this.source.start(0);
             }
         }
@@ -826,9 +1331,12 @@ class Voice {
 
     refreshPitch() {
         const freq = applyBend(this.baseFreq);
+
         if (this.midiChannel !== null && midiOutput) this.sendMidi(freq, false);
+
         if (this.source && !sf2Loaded) {
             const now = audioCtx.currentTime;
+
             if (customBuffer) {
                 this.source.playbackRate.setTargetAtTime(freq / state.baseFreq, now, 0.02);
             } else {
@@ -848,8 +1356,10 @@ class Voice {
         const delta = exactNote - noteIndex;
         const bendVal = Math.floor(8192 + (delta/2) * 8192);
         const clamped = Math.max(0, Math.min(16383, bendVal));
+
         const ch = this.midiChannel;
         midiOutput.send([0xE0 + ch, clamped & 0x7F, (clamped >> 7) & 0x7F]);
+
         if (isStart || noteIndex !== this.lastMidiNote) {
             if (!isStart && this.lastMidiNote !== null) midiOutput.send([0x80 + ch, this.lastMidiNote, 0]);
             midiOutput.send([0x90 + ch, noteIndex, 100]);
@@ -869,15 +1379,19 @@ class Voice {
             try {
                 const selectedSound = document.getElementById('builtInSoundSelect').value;
                 const isSample = customBuffer || (selectedSound !== 'synth' && loadedSounds[selectedSound]);
-                if (isSample) { if(vibratoGainRate) vibratoGainRate.disconnect(this.source.playbackRate); } 
-                else { if(vibratoGainFreq) vibratoGainFreq.disconnect(this.source.frequency); }
+
+                if (isSample) {
+                    if(vibratoGainRate) vibratoGainRate.disconnect(this.source.playbackRate);
+                } else {
+                    if(vibratoGainFreq) vibratoGainFreq.disconnect(this.source.frequency);
+                }
             } catch(e){}
 
             const now = audioCtx.currentTime;
+            // ADSR Release (NEW)
             const adsr = fxEngine.getAdsr();
             const rel = parseFloat(adsr.release);
             
-            // Release phase
             this.gain.gain.cancelScheduledValues(now);
             this.gain.gain.setValueAtTime(this.gain.gain.value, now);
             this.gain.gain.linearRampToValueAtTime(0.001, now + rel);
@@ -888,8 +1402,7 @@ class Voice {
     }
 }
 
-// --- FX UI HANDLING ---
-
+// --- FX UI HANDLING (NEW) ---
 function initFxUi() {
     // ADSR
     const adsrCvs = document.getElementById('adsrCanvas');
@@ -944,63 +1457,160 @@ function initFxUi() {
     bindModule('phaser', fxEngine.phaser);
 }
 
-// --- UI MODAL LOGIC ---
+// --- UI MODAL LOGIC FOR FX ---
 const fxModal = document.getElementById('fxModal');
 document.getElementById('fxBtn').addEventListener('click', () => fxModal.style.display = 'flex');
 document.getElementById('closeFxBtn').addEventListener('click', () => fxModal.style.display = 'none');
 
-// --- (REST OF THE LOGIC - ARP, MIDI, CANVAS - IS SAME, JUST RE-PASTED FOR COMPLETENESS) ---
 
-function arpScheduler() {
-    if (!state.arp || arpNotes.length === 0) return;
-    arpNotes.sort((a,b) => a.freq - b.freq);
-    const currentTime = audioCtx.currentTime;
-    const noteDuration = 60 / state.tempo;
-    while (nextNoteTime < currentTime + 0.1) {
-        const pattern = state.arpPattern;
-        if (pattern.length === 0) return;
-        const patternStep = pattern[arpIndex % pattern.length];
-        const noteIndex = patternStep % arpNotes.length;
-        const noteData = arpNotes[noteIndex];
-        const arpVoice = new Voice(-Date.now(), noteData, noteDuration * 0.9);
-        const timeUntilPlay = nextNoteTime - currentTime;
-        if (timeUntilPlay >= 0) {
-            const playingId = noteData.id;
-            setTimeout(() => { currentArpId = playingId; }, timeUntilPlay * 1000);
-            setTimeout(() => { if (currentArpId === playingId) currentArpId = null; }, (timeUntilPlay + noteDuration * 0.8) * 1000);
+// --- MIDI INIT & HANDLER ---
+async function initMidi() {
+    if (navigator.requestMIDIAccess) {
+        try {
+            midiAccess = await navigator.requestMIDIAccess();
+
+            // Outputs
+            const outSel = document.getElementById('midiOutputSelect');
+            midiAccess.outputs.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.id; opt.text = o.name;
+                outSel.appendChild(opt);
+            });
+            outSel.addEventListener('change', e => midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null);
+
+            // Inputs
+            const inSel = document.getElementById('midiInputSelect');
+            midiAccess.inputs.forEach(i => {
+                const opt = document.createElement('option');
+                opt.value = i.id; opt.text = i.name;
+                inSel.appendChild(opt);
+            });
+            inSel.addEventListener('change', e => {
+                if (midiInput) midiInput.onmidimessage = null; 
+                if (e.target.value) {
+                    midiInput = midiAccess.inputs.get(e.target.value);
+                    midiInput.onmidimessage = onMidiMessage;
+                } else {
+                    midiInput = null;
+                }
+            });
+
+        } catch(e) { console.error("MIDI Init Failed", e); }
+    }
+}
+
+function onMidiMessage(event) {
+    const [status, data1, data2] = event.data;
+    const command = status & 0xF0;
+    
+    if (command === 144 && data2 > 0) {
+        handleMidiNoteOn(data1, data2);
+    }
+    else if (command === 128 || (command === 144 && data2 === 0)) {
+        handleMidiNoteOff(data1);
+    }
+    else if (command === 224) {
+        const val = (data2 << 7) | data1;
+        state.bend = (val - 8192) / 8192;
+        updateWheelsFromState();
+    }
+    else if (command === 176 && data1 === 1) {
+        state.mod = data2 / 127;
+        updateWheelsFromState();
+    }
+}
+
+function updateWheelsFromState() {
+    const bendEl = document.getElementById('bendWheel');
+    const bendPercent = 50 - (state.bend * 50);
+    bendEl.querySelector('.wheel-mark').style.top = `${bendPercent}%`;
+
+    const modEl = document.getElementById('modWheel');
+    const modPercent = 100 - (state.mod * 100);
+    modEl.querySelector('.wheel-mark').style.top = `${modPercent}%`;
+
+    const now = audioCtx ? audioCtx.currentTime : 0;
+
+    if (audioCtx) {
+        vibratoGainFreq.gain.setTargetAtTime(0, now, 0.05);
+        vibratoGainRate.gain.setTargetAtTime(0, now, 0.05);
+
+        if (state.modTarget !== 'resonance') {
+            masterFilter.Q.setTargetAtTime(1, now, 0.1);
+            masterFilter.frequency.setTargetAtTime(22000, now, 0.1);
         }
-        nextNoteTime += noteDuration;
-        arpIndex++;
+        if (state.modTarget !== 'saturation') {
+            waveShaper.curve = makeDistortionCurve(0);
+        }
+
+        if (state.modTarget === 'vibrato') {
+            vibratoGainFreq.gain.setTargetAtTime(state.mod * 15, now, 0.05);
+            vibratoGainRate.gain.setTargetAtTime(state.mod * 0.05, now, 0.05);
+        } else if (state.modTarget === 'saturation') {
+            const amount = state.mod * 400;
+            waveShaper.curve = makeDistortionCurve(amount);
+        } else if (state.modTarget === 'resonance') {
+            const qVal = 1 + (state.mod * 19);
+            masterFilter.Q.setTargetAtTime(qVal, now, 0.05);
+            const freqVal = 22000 - (state.mod * 20000);
+            masterFilter.frequency.setTargetAtTime(Math.max(200, freqVal), now, 0.05);
+        }
     }
+
+    activeVoices.forEach(v => v.refreshPitch());
 }
 
-function startInput(id, x, y) {
-    if(!audioCtx) return;
-    const data = calculateParams(x, y);
-    if (state.arp) {
-        arpNotes.push({ ...data, id: id });
-        if (arpNotes.length === 1) { nextNoteTime = audioCtx.currentTime; arpIndex = 0; }
-    } else { activeVoices.set(id, new Voice(id, data)); }
-}
+function handleMidiNoteOn(note, velocity) {
+    if (!audioCtx) return;
 
-function moveInput(id, x, y) {
-    const data = calculateParams(x, y);
-    if (state.arp) {
-        const idx = arpNotes.findIndex(n => n.id === id);
-        if (idx !== -1) arpNotes[idx] = { ...data, id: id };
-    } else { if (activeVoices.has(id)) activeVoices.get(id).update(data); }
-}
+    const anchorNote = 60;
+    const delta = note - anchorNote;
+    const count = state.customMode ? state.customSettings.count : state.edo;
 
-function endInput(id) {
-    if (state.arp) {
-        if (!state.hold) { arpNotes = arpNotes.filter(n => n.id !== id); }
-        else { const note = arpNotes.find(n => n.id === id); if (note) note.id = 'latched_' + Date.now() + Math.random(); }
+    const octaveChange = Math.floor(delta / count);
+    const stepIndex = ((delta % count) + count) % count;
+
+    const mappedOctave = octaveChange;
+
+    let ringIndex;
+    if (state.invertOctaves) {
+        ringIndex = mappedOctave - LOWEST_OCTAVE;
     } else {
-        if (state.hold) {
-            const v = activeVoices.get(id);
-            if(v) { const newId = 'held_' + Date.now() + Math.random(); activeVoices.delete(id); activeVoices.set(newId, v); v.id = newId; }
-        } else { if (activeVoices.has(id)) { activeVoices.get(id).stop(); activeVoices.delete(id); } }
+        ringIndex = BASE_OCTAVE_HIGH - mappedOctave;
     }
+
+    if (ringIndex < 0) ringIndex = 0;
+    if (ringIndex >= CIRCLE_COUNT) ringIndex = CIRCLE_COUNT - 1;
+
+    const currentMaxRadius = baseRadius * state.zoom;
+    const step = currentMaxRadius / CIRCLE_COUNT;
+    const radius = (ringIndex + 0.5) * step;
+
+    const fraction = stepIndex / count;
+    const normalizedAngle = fraction * (Math.PI * 2);
+    const angle = normalizedAngle - (Math.PI / 2);
+
+    const visualX = centerX + Math.cos(angle) * radius;
+    const visualY = centerY + Math.sin(angle) * radius;
+
+    startInput('midi_' + note, visualX, visualY);
+}
+
+function handleMidiNoteOff(note) {
+    endInput('midi_' + note);
+}
+
+// --- CALCULATIONS ---
+
+function getCustomRatio(normalizedAngle) {
+    const count = state.customSettings.count;
+    const ratios = state.customSettings.ratios;
+
+    let index = Math.floor(normalizedAngle * count);
+    if (index >= count) index = count - 1;
+    if (index < 0) index = 0;
+
+    return { ratio: ratios[index], index: index };
 }
 
 function calculateParams(x, y) {
@@ -1010,33 +1620,38 @@ function calculateParams(x, y) {
     const angle = Math.atan2(dy, dx);
     const currentMaxRadius = baseRadius * state.zoom;
     const step = currentMaxRadius / CIRCLE_COUNT;
+
     let ringIndex = Math.floor(radius / step);
     if (ringIndex >= CIRCLE_COUNT) ringIndex = CIRCLE_COUNT - 1;
     if (ringIndex < 0) ringIndex = 0;
+
     let octave = state.invertOctaves ? (LOWEST_OCTAVE + ringIndex) : (BASE_OCTAVE_HIGH - ringIndex);
+
     let normalizedAngle = (angle + Math.PI / 2);
     if (normalizedAngle < 0) normalizedAngle += Math.PI * 2;
     const fraction = normalizedAngle / (Math.PI * 2);
+
     let freq = 0;
     let visualX = x, visualY = y;
 
     if (state.customMode) {
-        const count = state.customSettings.count;
-        let index = Math.floor(fraction * count);
-        if (index >= count) index = count - 1;
-        const ratio = state.customSettings.ratios[index];
+        const data = getCustomRatio(fraction);
         if (state.snapToGrid) {
-            const sectorAngle = (index / count) * Math.PI * 2 - Math.PI / 2;
+            const sectorAngle = (data.index / state.customSettings.count) * Math.PI * 2 - Math.PI / 2;
             const snapR = (ringIndex + 1) * step;
             visualX = centerX + Math.cos(sectorAngle) * snapR;
             visualY = centerY + Math.sin(sectorAngle) * snapR;
         }
-        freq = 16.35 * Math.pow(2, octave) * ratio;
-    } else {
+        const baseC = 16.35;
+        const octaveMultiplier = Math.pow(2, octave);
+        freq = baseC * octaveMultiplier * data.ratio;
+    }
+    else {
         let steps = fraction * state.edo;
         if (state.snapToGrid) {
             steps = Math.round(steps);
             if (steps === state.edo) steps = 0;
+
             const snappedAngle = (steps / state.edo) * Math.PI * 2 - Math.PI / 2;
             const snapR = (ringIndex + 1) * step;
             visualX = centerX + Math.cos(snappedAngle) * snapR;
@@ -1045,6 +1660,7 @@ function calculateParams(x, y) {
         const totalSteps = (octave * state.edo) + steps;
         freq = 16.35 * Math.pow(2, totalSteps / state.edo);
     }
+
     return { radius, angle, freq, visualX, visualY };
 }
 
@@ -1053,133 +1669,456 @@ function applyBend(freq) {
     return freq * Math.pow(2, state.bend * bendRangeOctaves);
 }
 
-// MIDI Handling
-async function initMidi() {
-    if (navigator.requestMIDIAccess) {
-        try {
-            midiAccess = await navigator.requestMIDIAccess();
-            const outSel = document.getElementById('midiOutputSelect');
-            midiAccess.outputs.forEach(o => { const opt = document.createElement('option'); opt.value = o.id; opt.text = o.name; outSel.appendChild(opt); });
-            outSel.addEventListener('change', e => midiOutput = e.target.value ? midiAccess.outputs.get(e.target.value) : null);
-            const inSel = document.getElementById('midiInputSelect');
-            midiAccess.inputs.forEach(i => { const opt = document.createElement('option'); opt.value = i.id; opt.text = i.name; inSel.appendChild(opt); });
-            inSel.addEventListener('change', e => {
-                if (midiInput) midiInput.onmidimessage = null; 
-                if (e.target.value) { midiInput = midiAccess.inputs.get(e.target.value); midiInput.onmidimessage = onMidiMessage; }
-                else { midiInput = null; }
-            });
-        } catch(e) {}
-    }
-}
-function onMidiMessage(event) {
-    const [status, data1, data2] = event.data;
-    const command = status & 0xF0;
-    if (command === 144 && data2 > 0) handleMidiNoteOn(data1, data2);
-    else if (command === 128 || (command === 144 && data2 === 0)) handleMidiNoteOff(data1);
-    else if (command === 224) { state.bend = ((data2 << 7 | data1) - 8192) / 8192; updateWheelsFromState(); }
-    else if (command === 176 && data1 === 1) { state.mod = data2 / 127; updateWheelsFromState(); }
-}
-function handleMidiNoteOn(note, velocity) {
-    if (!audioCtx) return;
-    const count = state.customMode ? state.customSettings.count : state.edo;
-    const delta = note - 60;
-    const octaveChange = Math.floor(delta / count);
-    const stepIndex = ((delta % count) + count) % count;
-    let ringIndex = state.invertOctaves ? octaveChange - LOWEST_OCTAVE : BASE_OCTAVE_HIGH - octaveChange;
-    if (ringIndex < 0) ringIndex = 0; if (ringIndex >= CIRCLE_COUNT) ringIndex = CIRCLE_COUNT - 1;
-    const step = (baseRadius * state.zoom) / CIRCLE_COUNT;
-    const radius = (ringIndex + 0.5) * step;
-    const angle = (stepIndex / count) * (Math.PI * 2) - (Math.PI / 2);
-    startInput('midi_' + note, centerX + Math.cos(angle)*radius, centerY + Math.sin(angle)*radius);
-}
-function handleMidiNoteOff(note) { endInput('midi_' + note); }
-function updateWheelsFromState() {
-    document.getElementById('bendWheel').querySelector('.wheel-mark').style.top = `${50 - (state.bend * 50)}%`;
-    document.getElementById('modWheel').querySelector('.wheel-mark').style.top = `${100 - (state.mod * 100)}%`;
-    if (audioCtx) {
-        const now = audioCtx.currentTime;
-        if (state.modTarget === 'vibrato') { vibratoGainFreq.gain.setTargetAtTime(state.mod*15, now, 0.05); vibratoGainRate.gain.setTargetAtTime(state.mod*0.05, now, 0.05); }
-        else if (state.modTarget === 'saturation') { waveShaper.curve = makeDistortionCurve(state.mod*400); }
-        else if (state.modTarget === 'resonance') { masterFilter.Q.setTargetAtTime(1+(state.mod*19), now, 0.05); masterFilter.frequency.setTargetAtTime(Math.max(200, 22000-(state.mod*20000)), now, 0.05); }
+// --- ARP SCHEDULER ---
+
+function arpScheduler() {
+    if (!state.arp || arpNotes.length === 0) return;
+
+    arpNotes.sort((a,b) => a.freq - b.freq);
+
+    const currentTime = audioCtx.currentTime;
+    const noteDuration = 60 / state.tempo;
+
+    while (nextNoteTime < currentTime + 0.1) {
+        const pattern = state.arpPattern;
+        if (pattern.length === 0) return;
+
+        const patternStep = pattern[arpIndex % pattern.length];
+        const noteIndex = patternStep % arpNotes.length;
+        const noteData = arpNotes[noteIndex];
+
+        const arpVoice = new Voice(-Date.now(), noteData, noteDuration * 0.9);
+
+        const timeUntilPlay = nextNoteTime - currentTime;
+        if (timeUntilPlay >= 0) {
+            const playingId = noteData.id;
+            setTimeout(() => {
+                currentArpId = playingId;
+            }, timeUntilPlay * 1000);
+
+            setTimeout(() => {
+                if (currentArpId === playingId) currentArpId = null;
+            }, (timeUntilPlay + noteDuration * 0.8) * 1000);
+        }
+
+        nextNoteTime += noteDuration;
+        arpIndex++;
     }
 }
 
-// Canvas & Animation
+// --- INPUT HANDLING ---
+
+function startInput(id, x, y) {
+    if(!audioCtx) return;
+
+    const data = calculateParams(x, y);
+
+    if (state.arp) {
+        arpNotes.push({ ...data, id: id });
+        if (arpNotes.length === 1) {
+            nextNoteTime = audioCtx.currentTime;
+            arpIndex = 0;
+        }
+    } else {
+        activeVoices.set(id, new Voice(id, data));
+    }
+}
+
+function moveInput(id, x, y) {
+    const data = calculateParams(x, y);
+    if (state.arp) {
+        const idx = arpNotes.findIndex(n => n.id === id);
+        if (idx !== -1) arpNotes[idx] = { ...data, id: id };
+    } else {
+        if (activeVoices.has(id)) activeVoices.get(id).update(data);
+    }
+}
+
+function endInput(id) {
+    if (state.arp) {
+        if (!state.hold) {
+            arpNotes = arpNotes.filter(n => n.id !== id);
+        } else {
+            const note = arpNotes.find(n => n.id === id);
+            if (note) {
+                note.id = 'latched_' + Date.now() + Math.random();
+            }
+        }
+    } else {
+        if (state.hold) {
+            const v = activeVoices.get(id);
+            if(v) {
+                const newId = 'held_' + Date.now() + Math.random();
+                activeVoices.delete(id);
+                activeVoices.set(newId, v);
+                v.id = newId;
+            }
+        } else {
+            if (activeVoices.has(id)) {
+                activeVoices.get(id).stop();
+                activeVoices.delete(id);
+            }
+        }
+    }
+}
+
 function initCanvas() {
     canvas = document.getElementById('synthCanvas');
     ctx = canvas.getContext('2d');
     const container = document.getElementById('canvas-container');
+
     const observer = new ResizeObserver(entries => {
-        for (let entry of entries) { canvas.width = Math.floor(entry.contentRect.width); canvas.height = Math.floor(entry.contentRect.height); resize(); }
+        for (let entry of entries) {
+            canvas.width = Math.floor(entry.contentRect.width);
+            canvas.height = Math.floor(entry.contentRect.height);
+            resize();
+        }
     });
     observer.observe(container);
     resize();
-    canvas.addEventListener('mousedown', e => { const r = canvas.getBoundingClientRect(); startInput('m', e.clientX - r.left, e.clientY - r.top); });
-    window.addEventListener('mousemove', e => { const r = canvas.getBoundingClientRect(); moveInput('m', e.clientX - r.left, e.clientY - r.top); });
+
+    // Mouse Handlers
+    canvas.addEventListener('mousedown', e => {
+        const r = canvas.getBoundingClientRect();
+        startInput('m', e.clientX - r.left, e.clientY - r.top);
+    });
+    window.addEventListener('mousemove', e => {
+        const r = canvas.getBoundingClientRect();
+        moveInput('m', e.clientX - r.left, e.clientY - r.top);
+    });
     window.addEventListener('mouseup', () => endInput('m'));
-    canvas.addEventListener('touchstart', e => { e.preventDefault(); const r = canvas.getBoundingClientRect(); for(let t of e.changedTouches) startInput(t.identifier, t.clientX - r.left, t.clientY - r.top); }, {passive:false});
-    canvas.addEventListener('touchmove', e => { e.preventDefault(); const r = canvas.getBoundingClientRect(); for(let t of e.changedTouches) moveInput(t.identifier, t.clientX - r.left, t.clientY - r.top); }, {passive:false});
-    const te = e => { e.preventDefault(); for(let t of e.changedTouches) endInput(t.identifier); };
-    canvas.addEventListener('touchend', te); canvas.addEventListener('touchcancel', te);
+
+    // Touch Handlers
+    canvas.addEventListener('touchstart', e => {
+        e.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        for(let i=0; i<e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            startInput(t.identifier, t.clientX - r.left, t.clientY - r.top);
+        }
+    }, {passive:false});
+
+    canvas.addEventListener('touchmove', e => {
+        e.preventDefault();
+        const r = canvas.getBoundingClientRect();
+        for(let i=0; i<e.changedTouches.length; i++) {
+            const t = e.changedTouches[i];
+            moveInput(t.identifier, t.clientX - r.left, t.clientY - r.top);
+        }
+    }, {passive:false});
+
+    const touchEnd = e => {
+        e.preventDefault();
+        for(let i=0; i<e.changedTouches.length; i++) endInput(e.changedTouches[i].identifier);
+    };
+    canvas.addEventListener('touchend', touchEnd);
+    canvas.addEventListener('touchcancel', touchEnd);
 }
-function resize() { width = canvas.width; height = canvas.height; centerX = width/2; centerY = height/2; baseRadius = Math.min(width, height) / 2 * 0.95; }
+
+function resize() {
+    width = canvas.width; height = canvas.height;
+    centerX = width/2; centerY = height/2;
+    baseRadius = Math.min(width, height) / 2 * 0.95;
+}
+
+// --- ANIMATION ---
 
 function animate() {
     arpScheduler();
+
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-color');
     ctx.fillRect(0, 0, width, height);
+
     const currentMaxR = baseRadius * state.zoom;
     const step = currentMaxR / CIRCLE_COUNT;
-    
-    // BG Gradient
+
+    // Background
     const grad = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, currentMaxR);
     grad.addColorStop(0, '#111'); grad.addColorStop(1, '#000');
     ctx.fillStyle = grad; ctx.beginPath(); ctx.arc(centerX, centerY, currentMaxR, 0, Math.PI*2); ctx.fill();
 
+    const activeScaleIndices = new Set();
+    if (state.selectedScale && !state.customMode) {
+        let noteIndex = state.scaleRoot;
+        let safeRoot = (noteIndex % state.edo + state.edo) % state.edo;
+        activeScaleIndices.add(safeRoot);
+
+        let current = noteIndex;
+        for (let stepVal of state.selectedScale.steps) {
+            current += stepVal;
+            let safeIndex = (current % state.edo + state.edo) % state.edo;
+            activeScaleIndices.add(safeIndex);
+        }
+    }
+
+    // Grid Lines
     const sectorCount = state.customMode ? state.customSettings.count : state.edo;
+
     for (let i = 0; i < sectorCount; i++) {
-        const angle = (i / sectorCount) * Math.PI * 2 - Math.PI / 2;
+        let angle;
+        if (state.customMode) {
+            angle = (i / sectorCount) * Math.PI * 2 - Math.PI / 2;
+        } else {
+            angle = (i / state.edo) * Math.PI * 2 - Math.PI / 2;
+        }
+
         ctx.beginPath(); ctx.moveTo(centerX, centerY);
         ctx.lineTo(centerX + Math.cos(angle)*currentMaxR, centerY + Math.sin(angle)*currentMaxR);
-        ctx.strokeStyle = '#222'; ctx.lineWidth = 1; ctx.stroke();
+
+        if (!state.customMode && state.selectedScale && activeScaleIndices.has(i)) {
+            ctx.strokeStyle = COLOR_ACCENT;
+            ctx.lineWidth = 2;
+        } else {
+            ctx.strokeStyle = '#222';
+            ctx.lineWidth = 1;
+        }
+
+        ctx.stroke();
+
+        // Labels
+        if (!state.customMode) {
+            const labelR = currentMaxR + 20;
+            if(labelR < Math.min(width, height)) {
+                ctx.fillStyle = '#444'; ctx.font = '12px Arial'; ctx.textAlign='center'; ctx.textBaseline='middle';
+                
+                let labelText = (i + 1).toString();
+                if (state.edo === 12) {
+                    labelText = NOTE_NAMES[i % 12];
+                } else if (state.edo === 31) {
+                    labelText = NOTE_NAMES_31[i % 31];
+                }
+                
+                ctx.fillText(labelText, centerX + Math.cos(angle)*labelR, centerY + Math.sin(angle)*labelR);
+            }
+        }
     }
+
+    ctx.lineWidth = 1;
 
     // Circles
     for (let i = 0; i < CIRCLE_COUNT; i++) {
         const r = (i + 1) * step;
         if (r > Math.max(width, height)*1.5) continue;
-        ctx.beginPath(); ctx.arc(centerX, centerY, r, 0, Math.PI * 2); ctx.strokeStyle = '#333'; ctx.stroke();
+        ctx.beginPath(); ctx.arc(centerX, centerY, r, 0, Math.PI * 2);
+        ctx.strokeStyle = '#333'; ctx.stroke();
+
+        if (state.snapToGrid) {
+            ctx.fillStyle = '#222';
+            for (let j = 0; j < sectorCount; j++) {
+                const angle = (j / sectorCount) * Math.PI * 2 - Math.PI / 2;
+                ctx.beginPath(); ctx.arc(centerX + Math.cos(angle)*r, centerY + Math.sin(angle)*r, 2, 0, Math.PI*2); ctx.fill();
+            }
+        }
         if ((i===0 || i===CIRCLE_COUNT-1) && r < Math.min(width, height)) {
             ctx.fillStyle = '#666'; ctx.font = '10px monospace';
-            ctx.fillText((i===0)?(state.invertOctaves?"LOW":"HIGH"):(state.invertOctaves?"HIGH":"LOW"), centerX+5, centerY-r+10);
+            const txt = (i===0) ? (state.invertOctaves?"LOW":"HIGH") : (state.invertOctaves?"HIGH":"LOW");
+            ctx.fillText(txt, centerX + 5, centerY - r + 10);
         }
     }
 
-    // Voices
+    // --- CHORD VISUALIZATION ---
+    if (state.selectedChord && !state.customMode) {
+        ctx.save();
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 10]);
+
+        const chordSteps = [0, ...state.selectedChord.steps];
+
+        chordSteps.forEach(stepOffset => {
+            const totalStep = state.chordRoot + stepOffset;
+            const angle = (totalStep / state.edo) * Math.PI * 2 - Math.PI / 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX, centerY);
+            ctx.lineTo(centerX + Math.cos(angle) * currentMaxR, centerY + Math.sin(angle) * currentMaxR);
+            ctx.stroke();
+        });
+
+        ctx.restore();
+    }
+
     const drawVoice = (x, y, txt, color, size) => {
         ctx.beginPath(); ctx.arc(x, y, size || 15, 0, Math.PI*2);
         ctx.fillStyle = color; ctx.shadowBlur = size || 15; ctx.shadowColor = color; ctx.fill(); ctx.shadowBlur = 0;
-        ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(x, y); ctx.strokeStyle = 'rgba(255,0,85,0.5)'; ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(centerX, centerY); ctx.lineTo(x, y);
+        ctx.strokeStyle = 'rgba(255,0,85,0.5)'; ctx.stroke();
         ctx.fillStyle = '#fff'; ctx.font = 'bold 12px Arial'; ctx.fillText(txt, x + 25, y);
     };
-    activeVoices.forEach(v => drawVoice(v.visualX, v.visualY, Math.round(applyBend(v.baseFreq))+"Hz", COLOR_ACCENT_ACTIVE, 15));
-    arpNotes.forEach(n => {
-        if (n.id === currentArpId) drawVoice(n.visualX, n.visualY, Math.round(applyBend(n.freq))+"Hz", '#ffffff', 20);
-        else drawVoice(n.visualX, n.visualY, Math.round(applyBend(n.freq))+"Hz", '#00aa00', 12);
+
+    // Active Voices
+    activeVoices.forEach(v => {
+        const freq = Math.round(applyBend(v.baseFreq));
+        drawVoice(v.visualX, v.visualY, freq + "Hz", COLOR_ACCENT_ACTIVE, 15);
     });
+
+    // ARP notes
+    arpNotes.forEach(n => {
+        const freq = Math.round(applyBend(n.freq));
+        if (n.id === currentArpId) {
+            drawVoice(n.visualX, n.visualY, freq + "Hz", '#ffffff', 20);
+        } else {
+            drawVoice(n.visualX, n.visualY, freq + "Hz", '#00aa00', 12);
+        }
+    });
+
     requestAnimationFrame(animate);
 }
 
-// --- BOOTSTRAP ---
+// --- CUSTOM UI LOGIC ---
+
+const modal = document.getElementById('customModal');
+const ratioContainer = document.getElementById('ratioContainer');
+
+function openCustomModal() {
+    document.getElementById('customNoteCount').value = state.customSettings.count;
+    generateRatioInputs();
+    modal.style.display = 'flex';
+}
+
+function parseMath(str) {
+    try {
+        if (!str) return NaN;
+        const formula = str.toString().replace(/\^/g, '**');
+        return Function('"use strict";return (' + formula + ')')();
+    } catch (e) {
+        return NaN;
+    }
+}
+
+function getIntervalName(ratioVal, inputStr) {
+    const edoMatch = inputStr.match(/^2\s*[\^]\s*\(\s*(\d+)\s*\/\s*(\d+)\s*\)$/);
+    if (edoMatch) {
+        const k = edoMatch[1];
+        const n = edoMatch[2];
+        return `${n} EDO interval ${k}`;
+    }
+
+    if (typeof intervalList !== 'undefined' && Array.isArray(intervalList)) {
+        const tolerance = 0.0005;
+        const match = intervalList.find(i => Math.abs(i.decimal - ratioVal) < tolerance);
+        if (match) {
+            return match.name;
+        }
+    }
+    return "";
+}
+
+function generateRatioInputs() {
+    ratioContainer.innerHTML = '';
+    const count = parseInt(document.getElementById('customNoteCount').value);
+
+    for(let i=0; i<count; i++) {
+        const div = document.createElement('div');
+        div.className = 'ratio-row';
+
+        const storedVal = state.customSettings.ratios[i];
+        const idealEdoVal = Math.pow(2, i/count);
+        let displayVal;
+
+        if (storedVal === undefined) {
+            displayVal = `2^(${i}/${count})`;
+        } 
+        else if (Math.abs(storedVal - idealEdoVal) < 0.0001) {
+            displayVal = `2^(${i}/${count})`;
+        } 
+        else {
+            displayVal = storedVal.toFixed(4);
+        }
+
+        const input = document.createElement('input');
+        input.type = 'text'; 
+        input.className = 'ratio-input';
+        input.value = displayVal; 
+
+        const infoSpan = document.createElement('span');
+        infoSpan.className = 'ratio-info';
+        
+        const currentNum = parseMath(displayVal); 
+        const currentName = getIntervalName(currentNum, displayVal);
+        infoSpan.innerText = `${currentName} (${currentNum.toFixed(4)})`;
+
+        input.addEventListener('input', (e) => {
+            const valStr = e.target.value;
+            const parsed = parseMath(valStr);
+            if (!isNaN(parsed)) {
+                const name = getIntervalName(parsed, valStr);
+                infoSpan.innerText = `${name} (${parsed.toFixed(4)})`;
+            } else {
+                infoSpan.innerText = "Virheellinen arvo";
+            }
+        });
+
+        div.innerHTML = `<span>Ratio ${i}:</span>`;
+        div.appendChild(input);
+        div.appendChild(infoSpan);
+
+        ratioContainer.appendChild(div);
+    }
+}
+
+document.getElementById('customNoteCount').addEventListener('change', generateRatioInputs);
+
+const saveAndClose = (close) => {
+    const inputs = document.querySelectorAll('.ratio-input');
+    const newRatios = [];
+    let valid = true;
+
+    inputs.forEach(inp => {
+        const val = parseMath(inp.value);
+        if (isNaN(val)) valid = false;
+        newRatios.push(val);
+    });
+
+    if (valid) {
+        state.customSettings.count = inputs.length;
+        state.customSettings.ratios = newRatios;
+        if (close) modal.style.display = 'none';
+    } else {
+        alert("Tarkista syötteet (virheellisiä arvoja)");
+    }
+};
+
+document.getElementById('saveCustomBtn').addEventListener('click', () => saveAndClose(false));
+document.getElementById('closeCustomBtn').addEventListener('click', () => saveAndClose(true));
+document.getElementById('customEditBtn').addEventListener('click', openCustomModal);
+
+document.getElementById('customToggleBtn').addEventListener('click', e => {
+    state.customMode = !state.customMode;
+    e.target.innerText = state.customMode ? "ON" : "OFF";
+    e.target.classList.toggle('active', state.customMode);
+});
+
+document.getElementById('loadCustomBtn').addEventListener('click', () => document.getElementById('loadCustomFile').click());
+document.getElementById('loadCustomFile').addEventListener('change', e => {
+    const f = e.target.files[0];
+    if(!f) return;
+    const r = new FileReader();
+    r.onload = ev => {
+        try {
+            const s = JSON.parse(ev.target.result);
+            if(s.count && s.ratios) {
+                state.customSettings = s;
+                generateRatioInputs();
+                document.getElementById('customNoteCount').value = s.count;
+            }
+        } catch(e) { alert("Invalid JSON"); }
+    };
+    r.readAsText(f);
+});
+
+// --- OTHER UI HANDLERS ---
+
 document.getElementById('startBtn').addEventListener('click', async () => {
     document.getElementById('start-overlay').style.display = 'none';
     await initAudio();
     populateScaleList();
     populateChordList();
+    // Replaced simple initWheels with robust touch handler below
+    // initWheels(); 
     initCanvas();
     animate();
-    
-    // --- WHEEL TOUCH SUPPORT ---
+
+    // --- KORJAUS: WHEEL TOUCH SUPPORT (From old18) ---
     const bW = document.getElementById('bendWheel');
     let bending = false;
     const sB = () => bending = true;
@@ -1231,23 +2170,191 @@ document.getElementById('startBtn').addEventListener('click', async () => {
     mW.addEventListener('touchend', e => { e.preventDefault(); eM(); });
 });
 
-// UI Event Listeners (Rest)
-// Lisätään standardi kuuntelijat
-document.getElementById('arpBtn').addEventListener('click', e => { state.arp = !state.arp; e.target.classList.toggle('active', state.arp); if(!state.arp) arpNotes=[]; });
-document.getElementById('holdBtn').addEventListener('click', e => { state.hold = !state.hold; e.target.classList.toggle('active', state.hold); if(!state.hold) activeVoices.clear(); });
-document.getElementById('notesBtn').addEventListener('click', e => { state.snapToGrid = !state.snapToGrid; e.target.classList.toggle('active'); });
-document.getElementById('invertBtn').addEventListener('click', e => { state.invertOctaves = !state.invertOctaves; e.target.classList.toggle('active'); });
-document.getElementById('zoomSlider').addEventListener('input', e => { state.zoom = parseFloat(e.target.value); resize(); });
-document.getElementById('edoInput').addEventListener('input', e => { state.edo = parseInt(e.target.value)||12; populateScaleList(); populateChordList(); });
-document.getElementById('baseFreqInput').addEventListener('input', e => { state.baseFreq = parseFloat(e.target.value)||261.63; });
-document.getElementById('customToggleBtn').addEventListener('click', e => { 
-    state.customMode = !state.customMode; 
-    e.target.innerText = state.customMode ? "ON" : "OFF"; 
-    e.target.classList.toggle('active', state.customMode); 
+const toggleArp = () => {
+    state.arp = !state.arp;
+    document.getElementById('arpBtn').classList.toggle('active', state.arp);
+
+    if (state.arp) {
+        if (state.hold && activeVoices.size > 0) {
+            activeVoices.forEach((v, key) => {
+                arpNotes.push({ 
+                    freq: v.baseFreq, 
+                    visualX: v.visualX, 
+                    visualY: v.visualY, 
+                    id: 'transferred_' + Math.random() 
+                });
+                v.stop();
+            });
+            activeVoices.clear();
+            nextNoteTime = audioCtx.currentTime;
+        }
+    } else {
+        arpNotes = [];
+        currentArpId = null;
+    }
+};
+
+const toggleHold = () => {
+    state.hold = !state.hold;
+    document.getElementById('holdBtn').classList.toggle('active', state.hold);
+    if (!state.hold) {
+        activeVoices.forEach(v => v.stop());
+        activeVoices.clear();
+        if (state.arp) {
+            arpNotes = [];
+            currentArpId = null;
+        }
+    }
+};
+
+document.getElementById('arpBtn').addEventListener('click', toggleArp);
+document.getElementById('holdBtn').addEventListener('click', toggleHold);
+
+document.getElementById('arpPatternInput').addEventListener('input', e => {
+    const val = e.target.value;
+    const parts = val.trim().split(/\s+/);
+    const seq = [];
+    parts.forEach(p => {
+        const n = parseInt(p);
+        if (!isNaN(n) && n > 0) seq.push(n - 1);
+    });
+    state.arpPattern = seq.length > 0 ? seq : [0, 1, 2, 3];
 });
-document.getElementById('customEditBtn').addEventListener('click', () => { document.getElementById('customModal').style.display = 'flex'; });
-document.getElementById('closeCustomBtn').addEventListener('click', () => { document.getElementById('customModal').style.display = 'none'; });
-document.getElementById('sampleInput').addEventListener('change', e => { const f=e.target.files[0]; if(f){ const r=new FileReader(); r.onload=ev=>{ audioCtx.decodeAudioData(ev.target.result, b=>{ customBuffer=applyCrossfadeToBuffer(b,0.4,1.4,0.05); statusText.innerText="Sample OK"; }); }; r.readAsArrayBuffer(f); }});
+
+document.getElementById('tapBtn').addEventListener('click', () => {
+    const now = Date.now();
+    if(tapTimes.length > 0 && now - tapTimes[tapTimes.length-1] > 2000) tapTimes = [];
+    tapTimes.push(now);
+    if(tapTimes.length > 4) tapTimes.shift();
+    if(tapTimes.length > 1) {
+        let sum = 0;
+        for(let i=1; i<tapTimes.length; i++) sum += (tapTimes[i] - tapTimes[i-1]);
+        const avg = sum / (tapTimes.length - 1);
+        const bpm = Math.round(60000 / avg);
+        state.tempo = bpm;
+        document.getElementById('tempoInput').value = bpm;
+    }
+});
+document.getElementById('tempoInput').addEventListener('change', e => state.tempo = parseInt(e.target.value));
+
+window.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'h') toggleHold();
+    if (e.key.toLowerCase() === 'r') toggleArp();
+});
+
+document.getElementById('zoomSlider').addEventListener('input', e => { state.zoom = parseFloat(e.target.value); resize(); });
+document.getElementById('invertBtn').addEventListener('click', e => { state.invertOctaves = !state.invertOctaves; e.target.classList.toggle('active'); });
+document.getElementById('notesBtn').addEventListener('click', e => { state.snapToGrid = !state.snapToGrid; e.target.classList.toggle('active'); });
+
+document.getElementById('edoInput').addEventListener('change', e => {
+    const oldEdo = state.edo;
+    const newEdo = parseInt(e.target.value) || 12;
+    const ratio = newEdo / oldEdo;
+
+    if (state.selectedScale && oldEdo !== newEdo) {
+        const newSteps = state.selectedScale.steps.map(step => Math.round(step * ratio));
+        state.selectedScale = {
+            ...state.selectedScale,
+            steps: newSteps,
+            name: `${state.selectedScale.name} (Adapted)`
+        };
+    }
+    if (state.selectedChord && oldEdo !== newEdo) {
+        const newChordSteps = state.selectedChord.steps.map(step => Math.round(step * ratio));
+        state.selectedChord = {
+            ...state.selectedChord,
+            steps: newChordSteps,
+            name: `${state.selectedChord.name} (Adapted)`
+        };
+    }
+
+    state.edo = newEdo;
+    populateScaleList();
+    populateChordList();
+});
+
+document.getElementById('baseFreqInput').addEventListener('input', e => state.baseFreq = parseFloat(e.target.value) || 261.63);
+
+document.getElementById('modTargetSelect').addEventListener('change', e => {
+    state.modTarget = e.target.value;
+    updateWheelsFromState();
+});
+
+// Original initWheels commented out, replaced by logic in startBtn click listener for better touch handling
+/*
+function initWheels() {
+    const bendEl = document.getElementById('bendWheel');
+    const modEl = document.getElementById('modWheel');
+
+    const getVal = (clientY, el) => {
+        const r = el.getBoundingClientRect();
+        return Math.max(0, Math.min(1, 1 - (clientY - r.top)/r.height));
+    };
+
+    let bending = false;
+    const startBend = () => { bending = true; };
+    const moveBend = (clientY) => {
+        if(bending){
+            const val = getVal(clientY, bendEl);
+            state.bend = (val - 0.5) * 2;
+            updateWheelsFromState();
+        }
+    };
+    const endBend = () => {
+        if(bending){
+            bending=false; state.bend=0;
+            const m=bendEl.querySelector('.wheel-mark');
+            m.style.transition='top 0.2s'; m.style.top='50%';
+            setTimeout(()=>m.style.transition='',200);
+            updateWheelsFromState();
+        }
+    };
+
+    bendEl.addEventListener('mousedown', startBend);
+    window.addEventListener('mousemove', e => moveBend(e.clientY));
+    window.addEventListener('mouseup', endBend);
+    bendEl.addEventListener('touchstart', (e) => { e.preventDefault(); startBend(); });
+    bendEl.addEventListener('touchmove', (e) => { e.preventDefault(); moveBend(e.touches[0].clientY); });
+    bendEl.addEventListener('touchend', (e) => { e.preventDefault(); endBend(); });
+
+    let modding = false;
+    const startMod = () => { modding = true; };
+    const moveMod = (clientY) => {
+        if(modding){
+            const val = getVal(clientY, modEl);
+            state.mod = val;
+            updateWheelsFromState();
+        }
+    };
+    const endMod = () => { modding = false; };
+
+    modEl.addEventListener('mousedown', startMod);
+    window.addEventListener('mousemove', e => moveMod(e.clientY));
+    window.addEventListener('mouseup', endMod);
+    modEl.addEventListener('touchstart', (e) => { e.preventDefault(); startMod(); });
+    modEl.addEventListener('touchmove', (e) => { e.preventDefault(); moveMod(e.touches[0].clientY); });
+    modEl.addEventListener('touchend', (e) => { e.preventDefault(); endMod(); });
+}
+*/
+
+document.getElementById('sampleInput').addEventListener('change', e => {
+    const f = e.target.files[0]; if(!f)return; sf2Loaded=false;
+    const r=new FileReader(); r.onload=ev=>{
+        if(!audioCtx) audioCtx=new AudioContext();
+        audioCtx.decodeAudioData(ev.target.result, b=>{
+            customBuffer=applyCrossfadeToBuffer(b, 0.4, 1.4, 0.05);
+            statusText.innerText="Sample OK";
+        });
+    }; r.readAsArrayBuffer(f);
+});
+document.getElementById('sf2Input').addEventListener('change', e => {
+    const f = e.target.files[0]; if(!f)return;
+    const r=new FileReader(); r.onload=ev=>{
+        if(!audioCtx) audioCtx=new AudioContext();
+        try { sf2Synth=new window.SpessaSynthLib.Synthesizer(audioCtx.destination, ev.target.result); sf2Loaded=true; statusText.innerText="SF2 OK"; }
+        catch(e){console.error(e);}
+    }; r.readAsArrayBuffer(f);
+});
 
 populateScaleList();
 </script>
