@@ -30,8 +30,13 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
-    touch-action: none;
+    touch-action: none; /* Estää oletuskosketukset canvaksella */
     user-select: none;
+}
+
+/* KORJAUS 1: Sallitaan kosketustoiminnot hallintapaneelissa ja inputeissa */
+#controls, .modal-content, input, select, button {
+    touch-action: manipulation;
 }
 
 /* Yläpalkki */
@@ -114,6 +119,7 @@ button.active { background: var(--accent-active); border-color: var(--accent-act
     position: relative;
     cursor: ns-resize;
     box-shadow: inset 0 0 10px #000;
+    touch-action: none; /* Tärkeä pyörille */
 }
 .wheel-mark {
     position: absolute; left: 0; right: 0; height: 2px;
@@ -1154,20 +1160,57 @@ document.getElementById('startBtn').addEventListener('click', async () => {
     populateChordList();
     initCanvas();
     animate();
-    // Wheel Init
-    const bW = document.getElementById('bendWheel');
-    let bending=false;
-    const sB=()=>bending=true;
-    const mB=(cy)=>{ if(bending){ const r=bW.getBoundingClientRect(); state.bend=(Math.max(0,Math.min(1,1-(cy-r.top)/r.height))-0.5)*2; updateWheelsFromState(); }};
-    const eB=()=>{ if(bending){ bending=false; state.bend=0; updateWheelsFromState(); }};
-    bW.addEventListener('mousedown',sB); window.addEventListener('mousemove',e=>mB(e.clientY)); window.addEventListener('mouseup',eB);
     
+    // --- KORJAUS 2: WHEEL TOUCH SUPPORT ---
+    const bW = document.getElementById('bendWheel');
+    let bending = false;
+    const sB = () => bending = true;
+    const mB = (cy) => { 
+        if(bending){ 
+            const r = bW.getBoundingClientRect(); 
+            state.bend = (Math.max(0, Math.min(1, 1 - (cy - r.top) / r.height)) - 0.5) * 2; 
+            updateWheelsFromState(); 
+        }
+    };
+    const eB = () => { 
+        if(bending){ 
+            bending = false; 
+            state.bend = 0; 
+            updateWheelsFromState(); 
+        }
+    };
+    
+    // Mouse events
+    bW.addEventListener('mousedown', sB); 
+    window.addEventListener('mousemove', e => mB(e.clientY)); 
+    window.addEventListener('mouseup', eB);
+    
+    // Touch events for BEND
+    bW.addEventListener('touchstart', e => { e.preventDefault(); sB(); }, {passive:false});
+    bW.addEventListener('touchmove', e => { e.preventDefault(); mB(e.changedTouches[0].clientY); }, {passive:false});
+    bW.addEventListener('touchend', e => { e.preventDefault(); eB(); });
+
     const mW = document.getElementById('modWheel');
-    let modding=false;
-    const sM=()=>modding=true;
-    const mM=(cy)=>{ if(modding){ const r=mW.getBoundingClientRect(); state.mod=Math.max(0,Math.min(1,1-(cy-r.top)/r.height)); updateWheelsFromState(); }};
-    const eM=()=>modding=false;
-    mW.addEventListener('mousedown',sM); window.addEventListener('mousemove',e=>mM(e.clientY)); window.addEventListener('mouseup',eM);
+    let modding = false;
+    const sM = () => modding = true;
+    const mM = (cy) => { 
+        if(modding){ 
+            const r = mW.getBoundingClientRect(); 
+            state.mod = Math.max(0, Math.min(1, 1 - (cy - r.top) / r.height)); 
+            updateWheelsFromState(); 
+        }
+    };
+    const eM = () => modding = false;
+    
+    // Mouse events
+    mW.addEventListener('mousedown', sM); 
+    window.addEventListener('mousemove', e => mM(e.clientY)); 
+    window.addEventListener('mouseup', eM);
+
+    // Touch events for MOD
+    mW.addEventListener('touchstart', e => { e.preventDefault(); sM(); }, {passive:false});
+    mW.addEventListener('touchmove', e => { e.preventDefault(); mM(e.changedTouches[0].clientY); }, {passive:false});
+    mW.addEventListener('touchend', e => { e.preventDefault(); eM(); });
 });
 
 // UI Event Listeners (Rest)
