@@ -1060,22 +1060,89 @@ class FXEngineClass {
     drawEq(canvas) {
         const ctx = canvas.getContext('2d');
         const w = canvas.width, h = canvas.height;
-        ctx.clearRect(0,0,w,h);
-        ctx.fillStyle = '#222'; ctx.fillRect(0,0,w,h);
+        const h2 = h / 2;
         
-        ctx.strokeStyle = '#00f3ff'; ctx.lineWidth = 2;
+        ctx.clearRect(0, 0, w, h);
+        ctx.fillStyle = '#111'; 
+        ctx.fillRect(0, 0, w, h);
+        
+        // Keskilinja (0 dB)
+        ctx.strokeStyle = '#333'; 
+        ctx.lineWidth = 1;
+        ctx.beginPath(); 
+        ctx.moveTo(0, h2); 
+        ctx.lineTo(w, h2); 
+        ctx.stroke();
+        
+        // Piirretään EQ-käyrä
+        ctx.strokeStyle = '#00f3ff'; 
+        ctx.lineWidth = 2;
         ctx.beginPath();
-        // Mock curve visualization based on gains
-        const yBase = h/2;
-        ctx.moveTo(0, yBase);
-        
-        const low = this.eqLow.gain.value;
-        const mid = this.eqMid.gain.value;
-        const high = this.eqHigh.gain.value;
-        
-        // Simple Bezier approximation
-        ctx.bezierCurveTo(w*0.25, yBase - low*2, w*0.5, yBase - mid*2, w*0.75, yBase - high*2);
-        ctx.lineTo(w, yBase);
+
+        // Haetaan arvot
+        const hpfFreq = this.hpf.frequency.value;
+        const lpfFreq = this.lpf.frequency.value;
+        const lowGain = this.eqLow.gain.value;
+        const midGain = this.eqMid.gain.value;
+        const highGain = this.eqHigh.gain.value;
+
+        // Käydään jokainen pikseli läpi X-akselilla
+        for (let x = 0; x < w; x++) {
+            // Logaritminen taajuusmuunnos: 0px = 20Hz, Leveys = 20000Hz
+            // Kaava: f = 20 * 1000^(x / w)
+            const relX = x / w;
+            const f = 20 * Math.pow(1000, relX);
+            
+            let y = h2;
+
+            // 1. EQ Gain vaikutukset (Visuaalinen arvio)
+            // Low Shelf (< 200Hz)
+            if (f < 200) {
+                y -= lowGain * 2;
+            } else if (f < 400) {
+                // Pehmeä siirtymä
+                const t = (f - 200) / 200;
+                y -= lowGain * 2 * (1 - t);
+            }
+
+            // Mid Peaking (~1000Hz) - Kellokäyrä
+            // Käytetään yksinkertaistettua kellokäyrää 1kHz ympärillä
+            const midCenter = 1000;
+            // Kuinka kaukana taajuus on keskikohdasta (logaritmisesti)
+            const dist = Math.abs(Math.log10(f) - Math.log10(midCenter));
+            if (dist < 1) { // Vaikutusalue
+                 const bell = 0.5 * (1 + Math.cos(dist * Math.PI));
+                 y -= midGain * 2 * bell;
+            }
+
+            // High Shelf (> 3000Hz)
+            if (f > 3000) {
+                y -= highGain * 2;
+            } else if (f > 1500) {
+                const t = (f - 1500) / 1500;
+                y -= highGain * 2 * t;
+            }
+            
+            // 2. HPF / LPF Leikkurit (Rolloff)
+            if (f < hpfFreq) {
+                // Jyrkkä lasku vasemmalle
+                const ratio = f / hpfFreq; // 0..1
+                // Visuaalinen vaimennus (mitä pienempi ratio, sitä alemmas viiva menee)
+                y += (1 - ratio) * h; 
+            }
+            
+            if (f > lpfFreq) {
+                // Jyrkkä lasku oikealle
+                const ratio = lpfFreq / f; // 0..1
+                y += (1 - ratio) * h;
+            }
+            
+            // Rajoitetaan piirto kankaan sisälle
+            y = Math.max(0, Math.min(h, y));
+
+            if (x === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+        }
         ctx.stroke();
     }
 }
